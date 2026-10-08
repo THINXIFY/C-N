@@ -54,6 +54,7 @@ interface TextProps {
   disabled?: boolean;
   type?: string;
   autoComplete?: string;
+  inputMode?: "text" | "numeric" | "decimal" | "tel" | "email" | "search" | "none" | "url";
   label: string;
   value: string;
   onChange: (v: string) => void;
@@ -64,7 +65,7 @@ interface TextProps {
   optional?: boolean;
 }
 
-export function TextField({ label, value, onChange, helper, error, max, placeholder, optional, disabled, type, autoComplete }: TextProps) {
+export function TextField({ label, value, onChange, helper, error, max, placeholder, optional, disabled, type, autoComplete, inputMode }: TextProps) {
   const id = useId();
   return (
     <FieldShell id={id} label={label} helper={helper} error={error} count={value.length} max={max} optional={optional}>
@@ -75,6 +76,7 @@ export function TextField({ label, value, onChange, helper, error, max, placehol
         placeholder={placeholder}
         type={type}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         disabled={disabled}
         aria-invalid={error ? true : undefined}
         aria-describedby={error || helper ? `${id}-msg` : undefined}

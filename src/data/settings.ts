@@ -197,6 +197,35 @@ export interface MaintenanceContent {
   supportButtonLabel: string;
 }
 
+/**
+ * Presentation text for /dashboard/transfer (the transfer-request form). The form fields themselves, their
+ * per-field labels/helpers and validation live in the component/transfer-validation.ts — this only covers the
+ * page-level wording and the two admin-controlled result panels (see src/data/app-settings.ts for the
+ * transferEnabled/transferResultMode switches that pick which panel a submission shows).
+ */
+export interface TransferContent {
+  pageTitle: string;
+  pageSubtitle: string;
+  helperText: string;
+  amountLabel: string;
+  currencyLabel: string;
+  transferTypeLabel: string;
+  recipientSectionTitle: string;
+  bankSectionTitle: string;
+  reviewTitle: string;
+  confirmCheckboxLabel: string;
+  submitButtonLabel: string;
+  acceptedTitle: string;
+  acceptedMessage: string;
+  backToDashboardLabel: string;
+  failureTitle: string;
+  failureMessage: string;
+  failureHelperText: string;
+  /** Shown instead of the form entirely when transferEnabled is off. */
+  unavailableTitle: string;
+  unavailableMessage: string;
+}
+
 export interface UserContent {
   login: LoginContent;
   navigation: NavigationContent;
@@ -207,6 +236,7 @@ export interface UserContent {
   messages: MessagesContent;
   notices: NoticesContent;
   maintenance: MaintenanceContent;
+  transfer: TransferContent;
 }
 
 export interface ContentSettings extends UserContent {
@@ -382,6 +412,27 @@ export const defaultUserContent: UserContent = {
     refreshButtonLabel: "Refresh Page",
     supportButtonLabel: "Contact Support",
   },
+  transfer: {
+    pageTitle: "Transfer Funds",
+    pageSubtitle: "Enter the recipient and banking information below to submit a transfer request.",
+    helperText: "Please verify all details carefully before submitting.",
+    amountLabel: "Amount",
+    currencyLabel: "Currency",
+    transferTypeLabel: "Transfer Type",
+    recipientSectionTitle: "Recipient Information",
+    bankSectionTitle: "Recipient Bank Information",
+    reviewTitle: "Review Transfer Request",
+    confirmCheckboxLabel: "I confirm that the information entered is correct.",
+    submitButtonLabel: "Submit Transfer Request",
+    acceptedTitle: "Transfer request submitted",
+    acceptedMessage: "Your transfer request has been received and is pending processing. Please review your account later for updates.",
+    backToDashboardLabel: "Back to Dashboard",
+    failureTitle: "Transfer currently unavailable",
+    failureMessage: "We’re unable to process this transfer request at the moment. Please try again later.",
+    failureHelperText: "If the issue continues, contact support.",
+    unavailableTitle: "Transfer requests are currently unavailable.",
+    unavailableMessage: "This feature has been temporarily turned off by an administrator. Please check back later.",
+  },
 };
 
 export const defaultContentSettings: ContentSettings = { ...defaultUserContent, updatedAt: null };
@@ -408,6 +459,7 @@ export function mergeUserContent(stored: Partial<ContentSettings> | null | undef
     messages: { ...d.messages, ...s.messages },
     notices: { ...d.notices, ...s.notices },
     maintenance: { ...d.maintenance, ...s.maintenance },
+    transfer: { ...d.transfer, ...s.transfer },
     updatedAt: typeof s.updatedAt === "string" ? s.updatedAt : null,
   };
 }

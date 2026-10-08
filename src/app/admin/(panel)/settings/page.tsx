@@ -1,10 +1,13 @@
 import { AdminSection } from "@/components/admin/AdminSection";
+import { CustomCssCard } from "@/components/admin/CustomCssCard";
 import { MaintenanceModeCard } from "@/components/admin/MaintenanceModeCard";
 import { SignOutButton } from "@/components/admin/SignOutButton";
+import { TransferSettingsCard } from "@/components/admin/TransferSettingsCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Reveal } from "@/components/ui/Reveal";
 import { getAppSettings } from "@/lib/app-settings-service";
 import { requireRole } from "@/lib/auth";
+import { getCustomCssSettings } from "@/lib/custom-css-service";
 import { formatLastLogin } from "@/lib/format";
 import { getTransactionCount } from "@/lib/records-service";
 import { getUserStats } from "@/lib/users-service";
@@ -20,13 +23,26 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export default async function AdminSettingsPage() {
   const admin = await requireRole("admin");
-  const [count, stats, appSettings] = await Promise.all([getTransactionCount(), getUserStats(), getAppSettings()]);
+  const [count, stats, appSettings, customCss] = await Promise.all([
+    getTransactionCount(),
+    getUserStats(),
+    getAppSettings(),
+    getCustomCssSettings(),
+  ]);
   return (
     <Reveal className="max-w-3xl">
       <PageHeader title="Settings" subtitle="Your administrator profile, system information and session." />
       <div className="space-y-5">
         <AdminSection title="User-Side Availability" description="Control whether normal users can access the user-facing application.">
           <MaintenanceModeCard initial={appSettings} />
+        </AdminSection>
+
+        <AdminSection title="Custom CSS" description="Add custom CSS to adjust the appearance of user-facing pages. Admin pages are never affected.">
+          <CustomCssCard initial={customCss} />
+        </AdminSection>
+
+        <AdminSection title="Transfer Request Settings" description="Control whether users can submit transfer requests and what they're told after submitting.">
+          <TransferSettingsCard initial={appSettings} />
         </AdminSection>
 
         <AdminSection title="Current Admin Profile">

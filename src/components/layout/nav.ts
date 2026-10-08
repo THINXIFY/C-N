@@ -1,7 +1,9 @@
 import {
   FileText,
   LayoutDashboard,
+  Landmark,
   LifeBuoy,
+  Send,
   Settings,
   Tags,
   UserCog,
@@ -21,6 +23,7 @@ export interface NavItem {
 
 export const userNav: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/transfer", label: "Transfer Funds", icon: Send },
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/dashboard/account", label: "Account", icon: UserRound },
   { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
@@ -31,6 +34,7 @@ export const adminNav: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/account", label: "Account", icon: UserCog },
   { href: "/admin/transactions", label: "Transactions", icon: FileText },
+  { href: "/admin/transfer-requests", label: "Transfer Requests", icon: Landmark },
   { href: "/admin/content", label: "Content & Labels", icon: Tags },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

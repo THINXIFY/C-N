@@ -4,13 +4,16 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { accountSeed } from "@/data/records";
 import { defaultAppSettings, type AppSettings } from "@/data/app-settings";
+import { defaultCustomCssSettings, type CustomCssSettings } from "@/data/custom-css";
+import { defaultGlobalReplaceState, type GlobalReplaceState } from "@/data/global-replace";
 import { defaultContentSettings, type ContentSettings } from "@/data/settings";
+import type { TransferRequest } from "@/data/transfer-requests";
 import { defaultUserSettings, type DbUser, type UserSettings } from "@/data/users";
 import { hashSecret, normalizeAccessCode } from "./secret-hash";
 
-// Tiny persistent store: tables `users`, `user_settings`, `content_settings`, `app_settings` in one JSON file
-// (hashes only, never plaintext credentials). Reads are cheap; writes are serialized and atomic. To move to
-// Supabase/Postgres, reimplement `readDb` / `mutateDb` (and nothing else changes).
+// Tiny persistent store: tables `users`, `user_settings`, `content_settings`, `app_settings`, `custom_css` in
+// one JSON file (hashes only, never plaintext credentials). Reads are cheap; writes are serialized and
+// atomic. To move to Supabase/Postgres, reimplement `readDb` / `mutateDb` (and nothing else changes).
 export interface Database {
   version: 1;
   users: DbUser[];
@@ -19,6 +22,15 @@ export interface Database {
   /** Global operational settings (currently just maintenance mode) — not part of the CMS. Optional so older
    *  db.json files (predating this field) parse without error; readers fall back to defaults. */
   appSettings?: AppSettings;
+  /** Admin-authored CSS for user-facing pages only — never admin pages. Optional for the same reason as
+   *  appSettings above. */
+  customCss?: CustomCssSettings;
+  /** History + one-step undo snapshot for the admin "Global Text Replacement" tool. Optional for the same
+   *  reason as appSettings above. */
+  globalReplace?: GlobalReplaceState;
+  /** Submitted transfer-request FORMS only — no payment integration, never affects financial data. Optional
+   *  for the same reason as appSettings above. */
+  transferRequests?: TransferRequest[];
   /** The user whose profile owns the (read-only) financial record. */
   financialOwnerId: string | null;
 }
@@ -56,6 +68,9 @@ async function seed(): Promise<Database> {
     userSettings: [],
     contentSettings: structuredClone(defaultContentSettings),
     appSettings: structuredClone(defaultAppSettings),
+    customCss: structuredClone(defaultCustomCssSettings),
+    globalReplace: structuredClone(defaultGlobalReplaceState),
+    transferRequests: [],
     financialOwnerId: null,
   };
 

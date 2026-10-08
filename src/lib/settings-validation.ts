@@ -194,6 +194,28 @@ export const MAINTENANCE_FIELDS: FieldSpec[] = [
   { key: "supportButtonLabel", label: "Support Button Label", helper: "Shown only when Support page notices give users somewhere to go; optional.", max: 40 },
 ];
 
+export const TRANSFER_FIELDS: FieldSpec[] = [
+  { key: "pageTitle", label: "Page title", helper: "Heading at the top of /dashboard/transfer.", max: 100 },
+  { key: "pageSubtitle", label: "Page subtitle", helper: "Line under the page title.", max: 250 },
+  { key: "helperText", label: "Helper note", helper: "Small reminder shown near the top of the form.", max: 150 },
+  { key: "amountLabel", label: "Amount field label", helper: "", max: 40 },
+  { key: "currencyLabel", label: "Currency field label", helper: "", max: 40 },
+  { key: "transferTypeLabel", label: "Transfer type field label", helper: "", max: 40 },
+  { key: "recipientSectionTitle", label: "Recipient section title", helper: "", max: 60 },
+  { key: "bankSectionTitle", label: "Bank section title", helper: "", max: 60 },
+  { key: "reviewTitle", label: "Review section title", helper: "", max: 60 },
+  { key: "confirmCheckboxLabel", label: "Confirmation checkbox label", helper: "Shown on the review step.", max: 150 },
+  { key: "submitButtonLabel", label: "Submit button label", helper: "", max: 40 },
+  { key: "acceptedTitle", label: "Accepted — title", helper: "Shown after a submission when Result Mode is Request Accepted.", max: 100 },
+  { key: "acceptedMessage", label: "Accepted — message", helper: "Must not claim money has actually been sent — only that the request was received.", max: 300, multiline: true },
+  { key: "backToDashboardLabel", label: "Accepted — button label", helper: "", max: 40 },
+  { key: "failureTitle", label: "Failure — title", helper: "Shown after a submission when Result Mode is Temporarily Unavailable.", max: 100 },
+  { key: "failureMessage", label: "Failure — message", helper: "", max: 300, multiline: true },
+  { key: "failureHelperText", label: "Failure — helper note", helper: "", max: 150 },
+  { key: "unavailableTitle", label: "Feature-disabled — title", helper: "Shown at /dashboard/transfer when the feature itself is turned off.", max: 100 },
+  { key: "unavailableMessage", label: "Feature-disabled — message", helper: "", max: 300, multiline: true },
+];
+
 export const CORE_REQUIRED_PHRASE: Record<string, string> = {
   loginFooterNotice: "not an official bank",
   dashboardInfoStrip: "not bank-verified",
@@ -232,6 +254,35 @@ function checkCoreNotice(errors: FieldErrors, errorKey: string, fieldKey: string
   if (banned) errors[errorKey] = `${label} can’t claim “${banned}” — this is a private record, not an official bank-verified statement.`;
 }
 
+// There is no real payment/settlement integration behind the transfer-request form, so the admin-editable
+// "accepted" wording must never claim money has actually moved — only that a request was received. Checked the
+// same way as the notices' banned-claim phrases above: an addition to, never a replacement for, text()'s checks.
+const BANNED_SETTLEMENT_CLAIM_PHRASES = [
+  "funds sent",
+  "money sent",
+  "money has been sent",
+  "funds have been sent",
+  "funds transferred",
+  "successfully transferred",
+  "transfer completed",
+  "transfer complete",
+  "transfer successful",
+  "transfer settled",
+  "payment sent",
+  "payment completed",
+  "wire sent",
+  "wire completed",
+  "has been sent",
+  "has been transferred",
+];
+
+function checkTransferClaim(errors: FieldErrors, errorKey: string, value: string, label: string): void {
+  if (errors[errorKey] || !value) return;
+  const norm = normalize(value);
+  const banned = BANNED_SETTLEMENT_CLAIM_PHRASES.find((p) => norm.includes(p));
+  if (banned) errors[errorKey] = `${label} can’t claim “${banned}” — there is no real settlement yet, only a submitted request.`;
+}
+
 export const limits = {
   topicTitle: 60,
   topicBody: 280,
@@ -268,6 +319,10 @@ export function validateContent(input: Partial<UserContent>): Validated<UserCont
 
   const maintenance = validateGroup(errors, "maintenance", input.maintenance, MAINTENANCE_FIELDS);
 
+  const transfer = validateGroup(errors, "transfer", input.transfer, TRANSFER_FIELDS);
+  checkTransferClaim(errors, "transfer.acceptedTitle", transfer.acceptedTitle, "Accepted — title");
+  checkTransferClaim(errors, "transfer.acceptedMessage", transfer.acceptedMessage, "Accepted — message");
+
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
     ok: true,
@@ -281,6 +336,7 @@ export function validateContent(input: Partial<UserContent>): Validated<UserCont
       messages,
       notices: notices as unknown as UserContent["notices"],
       maintenance: maintenance as unknown as UserContent["maintenance"],
+      transfer: transfer as unknown as UserContent["transfer"],
     },
   };
 }

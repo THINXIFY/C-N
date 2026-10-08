@@ -32,12 +32,16 @@ interface Props {
   noticeText?: string;
   /** Admin-only — never passed on the user side. Shows a small status banner when maintenance mode is on. */
   maintenanceActive?: boolean;
+  /** Hrefs to omit from the sidebar/drawer nav entirely (e.g. a feature an admin has turned off). Routes
+   *  themselves aren't removed — this only hides the nav entry; the page itself still enforces the same flag. */
+  hiddenNavHrefs?: string[];
 }
 
-export function AppShell({ variant, profile, notifications, children, navLabels, accountLabel, logoutLabel, signedOutToast = "Signed out successfully", noticeText, maintenanceActive }: Props) {
+export function AppShell({ variant, profile, notifications, children, navLabels, accountLabel, logoutLabel, signedOutToast = "Signed out successfully", noticeText, maintenanceActive, hiddenNavHrefs }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const nav = navLabels ? applyNavLabels(navLabels) : (variant === "admin" ? adminNav : userNav);
+  const baseNav = navLabels ? applyNavLabels(navLabels) : (variant === "admin" ? adminNav : userNav);
+  const nav = hiddenNavHrefs?.length ? baseNav.filter((item) => !hiddenNavHrefs.includes(item.href)) : baseNav;
   const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -69,7 +73,7 @@ export function AppShell({ variant, profile, notifications, children, navLabels,
   const helpHref = variant === "admin" ? "/admin/settings" : "/dashboard/support";
 
   return (
-    <div className="min-h-dvh">
+    <div className={cn("min-h-dvh", variant === "user" && "user-shell")}>
       {/* Desktop / tablet sidebar */}
       <aside
         className={cn(

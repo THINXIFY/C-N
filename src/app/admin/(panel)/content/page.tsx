@@ -2,18 +2,19 @@ import { ContentEditor } from "@/components/admin/ContentEditor";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Reveal } from "@/components/ui/Reveal";
 import { requireRole } from "@/lib/auth";
+import { getPublicGlobalReplaceState } from "@/lib/global-replace-service";
 import { getContentSettings } from "@/lib/users-service";
 
 export default async function AdminContentPage() {
   await requireRole("admin");
-  const settings = await getContentSettings();
+  const [settings, replaceState] = await Promise.all([getContentSettings(), getPublicGlobalReplaceState()]);
   return (
     <Reveal className="max-w-5xl">
       <PageHeader
         title="Content & Labels"
         subtitle="Nearly all user-facing text, across login, dashboard, transactions, account and support. Per-user greeting, subtitle and display options are edited on each user’s page."
       />
-      <ContentEditor initial={settings} />
+      <ContentEditor initial={settings} initialReplaceHistory={replaceState.history} initialCanUndoReplace={replaceState.canUndo} />
     </Reveal>
   );
 }

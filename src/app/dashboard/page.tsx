@@ -6,6 +6,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { CustomCssInjector } from "@/components/shared/CustomCssInjector";
 import { Reveal } from "@/components/ui/Reveal";
 import { requireRole } from "@/lib/auth";
 import { formatDate, formatMoney, greeting } from "@/lib/format";
@@ -33,7 +34,8 @@ export default async function OverviewPage() {
   );
 
   return (
-    <>
+    <div data-page="dashboard" className="dashboard-shell">
+      <CustomCssInjector scope="dashboard" />
       <Reveal>
         <PageHeader title={account.greeting || `${greeting(new Date(), d)}, ${first}`} subtitle={account.subtitle} />
       </Reveal>
@@ -96,6 +98,6 @@ export default async function OverviewPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

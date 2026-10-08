@@ -1,13 +1,16 @@
 import "server-only";
-import { defaultAppSettings, type AppSettings } from "@/data/app-settings";
+import { defaultAppSettings, type AppSettings, type TransferResultMode } from "@/data/app-settings";
 import { mutateDb, readDb } from "./db";
 
 // Global, non-CMS application settings — currently just maintenance mode. Kept separate from the
 // content-management system on purpose: this is operational state an admin flips, not editable wording.
 
+/** Shallow-merges stored settings over the defaults, so a field added to AppSettings after some installs
+ *  already have a stored (older-shaped) appSettings object still resolves to its default instead of
+ *  `undefined` — the same backward-compatibility concern mergeUserContent handles for CMS content. */
 export async function getAppSettings(): Promise<AppSettings> {
   const db = await readDb();
-  return db.appSettings ?? defaultAppSettings;
+  return { ...defaultAppSettings, ...db.appSettings };
 }
 
 /**
@@ -38,6 +41,24 @@ export async function setMaintenanceEstimatedReturn(text: string): Promise<AppSe
   return mutateDb((db) => {
     const current = db.appSettings ?? structuredClone(defaultAppSettings);
     const next: AppSettings = { ...current, maintenanceEstimatedReturn: text };
+    db.appSettings = next;
+    return next;
+  });
+}
+
+export async function setTransferEnabled(enabled: boolean): Promise<AppSettings> {
+  return mutateDb((db) => {
+    const current = db.appSettings ?? structuredClone(defaultAppSettings);
+    const next: AppSettings = { ...current, transferEnabled: enabled };
+    db.appSettings = next;
+    return next;
+  });
+}
+
+export async function setTransferResultMode(mode: TransferResultMode): Promise<AppSettings> {
+  return mutateDb((db) => {
+    const current = db.appSettings ?? structuredClone(defaultAppSettings);
+    const next: AppSettings = { ...current, transferResultMode: mode };
     db.appSettings = next;
     return next;
   });

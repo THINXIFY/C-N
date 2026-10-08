@@ -19,13 +19,16 @@ import {
   NOTICES_FIELDS,
   SUPPORT_FIELDS,
   TRANSACTIONS_FIELDS,
+  TRANSFER_FIELDS,
   limits,
   validateContent,
   type FieldErrors,
   type FieldSpec,
 } from "@/lib/settings-validation";
+import type { ReplacementHistoryEntry } from "@/data/global-replace";
 import { AdminSection } from "./AdminSection";
 import { SaveBar, TextAreaField, TextField } from "./fields";
+import { GlobalReplaceCard } from "./GlobalReplaceCard";
 
 type SectionKey = keyof UserContent;
 
@@ -48,6 +51,12 @@ const TABS: Array<{ key: SectionKey; label: string; description: string; specs: 
     label: "Maintenance",
     description: "Wording shown on the public /maintenance page. Whether maintenance mode is actually on is controlled separately, in Settings → User-Side Availability.",
     specs: MAINTENANCE_FIELDS,
+  },
+  {
+    key: "transfer",
+    label: "Transfer",
+    description: "Wording shown on /dashboard/transfer, including the accepted/failure result messages. Whether transfers are enabled and which result users see is controlled separately, in Settings → Transfer Request Settings.",
+    specs: TRANSFER_FIELDS,
   },
 ];
 
@@ -130,13 +139,21 @@ function ResetSectionButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-export function ContentEditor({ initial }: { initial: ContentSettings }) {
+export function ContentEditor({
+  initial,
+  initialReplaceHistory,
+  initialCanUndoReplace,
+}: {
+  initial: ContentSettings;
+  initialReplaceHistory: ReplacementHistoryEntry[];
+  initialCanUndoReplace: boolean;
+}) {
   const { toast } = useToast();
   const [saved, setSaved] = useState<UserContent>(initial);
   const [form, setForm] = useState<UserContent>(initial);
   const [updatedAt, setUpdatedAt] = useState<string | null>(initial.updatedAt);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [activeTab, setActiveTab] = useState<SectionKey | "advanced">("login");
+  const [activeTab, setActiveTab] = useState<SectionKey | "advanced" | "globalReplace">("login");
   const [resetTarget, setResetTarget] = useState<SectionKey | null>(null);
   const [resetAllOpen, setResetAllOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -218,7 +235,7 @@ export function ContentEditor({ initial }: { initial: ContentSettings }) {
   const activeDef = TABS.find((t) => t.key === activeTab);
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap gap-1.5 rounded-xl border border-line bg-white p-1.5">
         {TABS.map((t) => (
           <button
@@ -243,8 +260,22 @@ export function ContentEditor({ initial }: { initial: ContentSettings }) {
         >
           Advanced
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("globalReplace")}
+          className={cn(
+            "flex h-11 items-center rounded-lg px-3.5 text-sm font-medium transition-colors duration-150",
+            activeTab === "globalReplace" ? "bg-brand-soft text-brand-dark" : "text-muted hover:bg-canvas hover:text-ink",
+          )}
+        >
+          Global Replace
+        </button>
       </div>
 
+      {activeTab === "globalReplace" ? (
+        <GlobalReplaceCard initialHistory={initialReplaceHistory} initialCanUndo={initialCanUndoReplace} />
+      ) : (
+      <form onSubmit={onSubmit} noValidate className="space-y-5">
       {activeDef && activeDef.key !== "support" && activeDef.key !== "notices" && (
         <AdminSection title={activeDef.label} description={activeDef.description} badge={<ResetSectionButton onClick={() => setResetTarget(activeDef.key)} />}>
           <FieldGroup
@@ -364,6 +395,8 @@ export function ContentEditor({ initial }: { initial: ContentSettings }) {
           </button>
         </div>
       </Modal>
-    </form>
+      </form>
+      )}
+    </div>
   );
 }

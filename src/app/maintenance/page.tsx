@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Wrench } from "lucide-react";
 import { MaintenanceActions } from "@/components/maintenance/MaintenanceActions";
+import { CustomCssInjector } from "@/components/shared/CustomCssInjector";
 import { BrandName } from "@/components/ui/BrandName";
 import { Reveal } from "@/components/ui/Reveal";
 import { getAppSettings } from "@/lib/app-settings-service";
@@ -20,7 +21,8 @@ export default async function MaintenancePage() {
   const estimatedReturn = appSettings.maintenanceEstimatedReturn.trim();
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-12">
+    <main data-page="maintenance" className="maintenance-shell flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-12">
+      <CustomCssInjector scope="maintenance" />
       <Reveal index={1} className="w-full max-w-[460px]">
         <div className="rounded-2xl border border-line bg-white p-8 text-center shadow-[0_1px_2px_rgba(23,32,28,.04)] sm:p-10">
           <div className="mb-6 flex justify-center">

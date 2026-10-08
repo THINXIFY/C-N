@@ -95,7 +95,10 @@ export function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas">
+    <div
+      data-page={admin ? undefined : "login"}
+      className={`flex min-h-dvh flex-col bg-canvas${admin ? "" : " user-shell login-shell"}`}
+    >
       <div className="flex flex-1">
         <BrandPanel admin={admin} content={content} />
         <main className="flex flex-1 flex-col bg-white lg:bg-canvas">

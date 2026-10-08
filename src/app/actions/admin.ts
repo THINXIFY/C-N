@@ -1,12 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { AppSettings } from "@/data/app-settings";
+import type { AppSettings, TransferResultMode } from "@/data/app-settings";
+import type { CustomCssScope, CustomCssSettings } from "@/data/custom-css";
 import type { ContentSettings, UserContent } from "@/data/settings";
 import type { DbUser, EditableUserSettings, UserStatus } from "@/data/users";
 import { deleteAvatarFile, saveAvatarFile, validatePhotoFile } from "@/lib/avatar-storage";
-import { setMaintenanceEstimatedReturn, setMaintenanceMode } from "@/lib/app-settings-service";
+import { setMaintenanceEstimatedReturn, setMaintenanceMode, setTransferEnabled, setTransferResultMode } from "@/lib/app-settings-service";
 import { getCurrentUser } from "@/lib/auth";
+import { clearCustomCss, saveCustomCss, setCustomCssEnabled } from "@/lib/custom-css-service";
+import { validateCustomCss } from "@/lib/custom-css-validation";
+import type { GlobalReplaceMatch, ReplaceOptions } from "@/lib/global-replace";
+import { applyGlobalReplace, previewGlobalReplace, undoLastReplacement, type PublicGlobalReplaceState } from "@/lib/global-replace-service";
+import { validateReplaceInput } from "@/lib/global-replace-validation";
 import { text } from "@/lib/settings-validation";
 import {
   clearUserPhoto,
@@ -79,7 +85,7 @@ export async function updateContentSettings(input: UserContent): Promise<Content
   return { ok: true, settings };
 }
 
-const CONTENT_SECTIONS = ["login", "navigation", "dashboard", "transactions", "account", "support", "messages", "notices", "maintenance"] as const;
+const CONTENT_SECTIONS = ["login", "navigation", "dashboard", "transactions", "account", "support", "messages", "notices", "maintenance", "transfer"] as const;
 type ContentSection = (typeof CONTENT_SECTIONS)[number];
 
 export async function resetContentSectionAction(section: ContentSection): Promise<ContentSaveResult> {
@@ -134,6 +140,124 @@ export async function setMaintenanceEstimatedReturnAction(estimatedReturn: strin
     const settings = await setMaintenanceEstimatedReturn(value);
     refreshViews();
     return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+// ---------- transfer-request availability + result mode — not part of the CMS ----------
+
+export async function setTransferEnabledAction(enabled: boolean): Promise<AppSettingsResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  try {
+    const settings = await setTransferEnabled(enabled);
+    refreshViews();
+    return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+export async function setTransferResultModeAction(mode: TransferResultMode): Promise<AppSettingsResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  if (mode !== "accepted" && mode !== "unavailable") return FAILED;
+  try {
+    const settings = await setTransferResultMode(mode);
+    refreshViews();
+    return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+// ---------- custom CSS (user-facing pages only) — not part of the CMS ----------
+
+export interface CustomCssResult extends SaveResult {
+  settings?: CustomCssSettings;
+  warnings?: string[];
+}
+
+export async function saveCustomCssAction(css: string, scopes: CustomCssScope[]): Promise<CustomCssResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  const result = validateCustomCss(css, scopes);
+  if (!result.ok) return { ok: false, error: result.error };
+  try {
+    const settings = await saveCustomCss(result.value.css, result.value.scopes);
+    refreshViews();
+    return { ok: true, settings, warnings: result.warnings };
+  } catch {
+    return FAILED;
+  }
+}
+
+export async function setCustomCssEnabledAction(enabled: boolean): Promise<CustomCssResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  try {
+    const settings = await setCustomCssEnabled(enabled);
+    refreshViews();
+    return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+export async function clearCustomCssAction(): Promise<CustomCssResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  try {
+    const settings = await clearCustomCss();
+    refreshViews();
+    return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+// ---------- global text replacement (user-facing CMS content only) ----------
+
+export interface GlobalReplacePreviewResult extends SaveResult {
+  matchCount?: number;
+  matches?: GlobalReplaceMatch[];
+}
+
+export async function previewGlobalReplaceAction(existingText: string, newText: string, options: ReplaceOptions): Promise<GlobalReplacePreviewResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  const v = validateReplaceInput(existingText, newText, options.caseInsensitive, options.partial);
+  if (!v.ok) return { ok: false, error: v.error };
+  try {
+    const matches = await previewGlobalReplace(v.existingText, { caseInsensitive: v.caseInsensitive, partial: v.partial });
+    return { ok: true, matchCount: matches.length, matches };
+  } catch {
+    return FAILED;
+  }
+}
+
+export interface GlobalReplaceApplyResult extends ContentSaveResult {
+  matchCount?: number;
+  historyState?: PublicGlobalReplaceState;
+}
+
+export async function applyGlobalReplaceAction(existingText: string, newText: string, options: ReplaceOptions): Promise<GlobalReplaceApplyResult> {
+  const admin = await requireAdminUser();
+  if (!admin) return DENIED;
+  const v = validateReplaceInput(existingText, newText, options.caseInsensitive, options.partial);
+  if (!v.ok) return { ok: false, error: v.error };
+  try {
+    const result = await applyGlobalReplace(v.existingText, v.newText, { caseInsensitive: v.caseInsensitive, partial: v.partial }, admin);
+    if (!result.ok) return { ok: false, error: result.error };
+    refreshViews();
+    return { ok: true, settings: result.settings, matchCount: result.matchCount, historyState: result.state };
+  } catch {
+    return FAILED;
+  }
+}
+
+export async function undoLastReplacementAction(): Promise<GlobalReplaceApplyResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  try {
+    const result = await undoLastReplacement();
+    if (!result.ok) return { ok: false, error: result.error };
+    refreshViews();
+    return { ok: true, settings: result.settings, historyState: result.state };
   } catch {
     return FAILED;
   }

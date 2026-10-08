@@ -50,14 +50,18 @@ export function Topbar({ sectionLabel, profile, accountHref, accountLabel = "Acc
           {() => (
             <div>
               <p className="px-3 pb-1 pt-2 text-sm font-semibold">Notifications</p>
-              <ul>
-                {notifications.map((n) => (
-                  <li key={n.id} className="rounded-lg px-3 py-2.5 hover:bg-canvas">
-                    <p className="text-sm font-medium">{n.title}</p>
-                    <p className="mt-0.5 text-[13px] leading-snug text-muted">{n.body}</p>
-                  </li>
-                ))}
-              </ul>
+              {notifications.length === 0 ? (
+                <p className="px-3 py-2.5 text-sm text-muted">No new notifications.</p>
+              ) : (
+                <ul>
+                  {notifications.map((n) => (
+                    <li key={n.id} className="rounded-lg px-3 py-2.5 hover:bg-canvas">
+                      <p className="text-sm font-medium">{n.title}</p>
+                      <p className="mt-0.5 text-[13px] leading-snug text-muted">{n.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </Popover>

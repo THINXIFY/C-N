@@ -9,12 +9,14 @@ import {
   clearUserPhoto,
   createUser,
   deleteUser,
+  removeUserSecurityQuestion,
   resetAllContent,
   resetContentSection,
   saveContentSettings,
   setUserAccessCode,
   setUserPassword,
   setUserPhoto,
+  setUserSecurityQuestion,
   setUserStatus,
   updateUserProfile,
   updateUserSettings,
@@ -24,6 +26,7 @@ import {
   validateAccessCodeReset,
   validateCreateUser,
   validatePasswordReset,
+  validateSecurityQuestion,
   validateUserProfile,
   validateUserSettings,
   type CreateUserInput,
@@ -168,6 +171,38 @@ export async function resetAccessCodeAction(id: string, input: { accessCode: str
   if (!v.ok) return { ok: false, fieldErrors: v.errors };
   try {
     const r = await setUserAccessCode(id, v.value.accessCode);
+    if (!r.ok) return { ok: false, error: r.error };
+  } catch {
+    return FAILED;
+  }
+  refreshViews();
+  return { ok: true };
+}
+
+/** Sets/replaces a user's Step 2 security question + answer. Both are always re-submitted together — the
+ *  answer is write-only and is never read back, so there's no "change just the question" path that could
+ *  leave a stale hash for different wording. */
+export async function setUserSecurityQuestionAction(id: string, input: { securityQuestion: string; securityAnswer: string }): Promise<SaveResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  if (!idOk(id)) return FAILED;
+  const v = validateSecurityQuestion(input, { required: true });
+  if (!v.ok) return { ok: false, fieldErrors: v.errors };
+  try {
+    // required: true guarantees both are non-null strings here.
+    const r = await setUserSecurityQuestion(id, v.value.securityQuestion!, v.value.securityAnswer!);
+    if (!r.ok) return { ok: false, error: r.error };
+  } catch {
+    return FAILED;
+  }
+  refreshViews();
+  return { ok: true };
+}
+
+export async function removeUserSecurityQuestionAction(id: string): Promise<SaveResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  if (!idOk(id)) return FAILED;
+  try {
+    const r = await removeUserSecurityQuestion(id);
     if (!r.ok) return { ok: false, error: r.error };
   } catch {
     return FAILED;

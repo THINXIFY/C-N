@@ -4,8 +4,10 @@ import { Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
-import { updateUserAction } from "@/app/actions/admin";
+import { removeUserSecurityQuestionAction, updateUserAction } from "@/app/actions/admin";
 import { Button } from "@/components/ui/Button";
+import { buttonClass } from "@/components/ui/button-styles";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { STATUS_OPTIONS } from "@/data/settings";
 import type { EditableUserSettings, UserRole, UserStatus, UserSummary } from "@/data/users";
@@ -17,6 +19,7 @@ import { CredentialDialog, type CredentialKind } from "./CredentialDialog";
 import { DeleteUserDialog } from "./DeleteUserDialog";
 import { SaveBar, SelectInput, TextField, ToggleField } from "./fields";
 import { ProfilePhotoManager } from "./ProfilePhotoManager";
+import { SecurityQuestionDialog } from "./SecurityQuestionDialog";
 
 interface Props {
   user: UserSummary;
@@ -53,6 +56,22 @@ export function UserEditor({ user, settings, isSelf, financial }: Props) {
   const [pending, startTransition] = useTransition();
   const [cred, setCred] = useState<CredentialKind | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [secOpen, setSecOpen] = useState(false);
+  const [removingSec, setRemovingSec] = useState(false);
+  const [removeSecPending, startRemoveSecTransition] = useTransition();
+
+  function removeSecurityQuestion() {
+    startRemoveSecTransition(async () => {
+      const res = await removeUserSecurityQuestionAction(user.id);
+      if (!res.ok) {
+        toast(res.error ?? "Unable to save changes.");
+        return;
+      }
+      toast("Security question removed");
+      setRemovingSec(false);
+      router.refresh();
+    });
+  }
 
   const dirty = JSON.stringify({ profile, settings: prefs }) !== JSON.stringify(saved);
   const clearErr = (k: string) => errors[k] && setErrors((e) => ({ ...e, [k]: "" }));
@@ -159,6 +178,45 @@ export function UserEditor({ user, settings, isSelf, financial }: Props) {
         </AdminSection>
 
         <AdminSection
+          title="Security Verification"
+          description="An optional Step 2 question + answer challenge for this user. The answer can’t be viewed after saving — only replaced."
+        >
+          {user.securityQuestion ? (
+            <div className="space-y-4">
+              <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-3">
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted">Question</dt>
+                  <dd className="mt-1 break-words text-sm font-medium">{user.securityQuestion}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted">Answer</dt>
+                  <dd className="mt-1 text-sm font-medium">Configured</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted">Last updated</dt>
+                  <dd className="mt-1 text-sm font-medium">{user.securityAnswerUpdatedAt ? formatDateTime(user.securityAnswerUpdatedAt) : "—"}</dd>
+                </div>
+              </dl>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button type="button" variant="secondary" onClick={() => setSecOpen(true)}>Edit</Button>
+                <button
+                  type="button"
+                  onClick={() => setRemovingSec(true)}
+                  className="inline-flex h-11 items-center justify-center rounded-[10px] border border-debit/30 bg-white px-5 text-sm font-medium text-debit transition-colors hover:bg-debit-soft sm:w-auto"
+                >
+                  Remove Security Question
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted">No security question configured. Step 2 uses the private access code for this user.</p>
+              <Button type="button" variant="secondary" onClick={() => setSecOpen(true)}>Save Security Question</Button>
+            </div>
+          )}
+        </AdminSection>
+
+        <AdminSection
           title="Financial Record — Read Only"
           description="Financial record values cannot be changed from the administration panel."
           badge={
@@ -208,6 +266,21 @@ export function UserEditor({ user, settings, isSelf, financial }: Props) {
 
       <CredentialDialog kind={cred} user={cred ? user : null} onClose={() => setCred(null)} />
       <DeleteUserDialog user={deleting ? user : null} onClose={() => setDeleting(false)} onDeleted={() => router.replace("/admin/users")} />
+      <SecurityQuestionDialog open={secOpen} user={secOpen ? user : null} onClose={() => setSecOpen(false)} />
+
+      <Modal
+        open={removingSec}
+        onClose={() => !removeSecPending && setRemovingSec(false)}
+        title="Remove security question?"
+        description="This user will no longer be asked this question during verification."
+      >
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button type="button" variant="secondary" onClick={() => setRemovingSec(false)} disabled={removeSecPending}>Cancel</Button>
+          <button onClick={removeSecurityQuestion} disabled={removeSecPending} className={buttonClass("danger")}>
+            {removeSecPending ? "Removing…" : "Remove"}
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }

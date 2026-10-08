@@ -31,8 +31,14 @@ export interface LoginContent {
   continueButton: string;
   securityTitle: string;
   securitySubtitle: string;
+  verificationNoticeLabel: string;
   accessCodeLabel: string;
   accessCodePlaceholder: string;
+  /** Generic presentation labels only — the actual per-user security question text is USER data (src/data/users.ts),
+   *  never part of this content system; see src/app/actions/auth.ts. */
+  securityQuestionLabel: string;
+  securityAnswerLabel: string;
+  securityAnswerPlaceholder: string;
   verifyButton: string;
   backButton: string;
   helpText: string;
@@ -210,9 +216,13 @@ export const defaultUserContent: UserContent = {
     rememberMeLabel: "Remember me on this device",
     continueButton: "Continue",
     securityTitle: "Security Verification",
-    securitySubtitle: "Enter your private access code to continue.",
+    securitySubtitle: "Enter the private access code provided by your administrator to continue.",
+    verificationNoticeLabel: "Verification required",
     accessCodeLabel: "Private access code",
     accessCodePlaceholder: "Enter your access code",
+    securityQuestionLabel: "Security Question",
+    securityAnswerLabel: "Security Answer",
+    securityAnswerPlaceholder: "Enter your answer",
     verifyButton: "Verify & Sign In",
     backButton: "Back",
     helpText: "Need help? Contact your account administrator.",

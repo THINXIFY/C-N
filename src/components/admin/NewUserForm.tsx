@@ -26,6 +26,8 @@ const empty: CreateUserInput = {
   confirmPassword: "",
   accessCode: "",
   confirmAccessCode: "",
+  securityQuestion: "",
+  securityAnswer: "",
 };
 
 function SecretField({ id, label, value, onChange, error, noun }: { id: string; label: string; value: string; onChange: (v: string) => void; error?: string; noun: string }) {
@@ -110,6 +112,21 @@ export function NewUserForm() {
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           <SelectInput label="Role" value={form.role} onChange={(v) => set("role")(v as UserRole)} error={errors.role} options={[{ value: "user", label: "User — dashboard access" }, { value: "admin", label: "Admin — administration panel" }]} />
           <SelectInput label="Status" value={form.status} onChange={(v) => set("status")(v as UserStatus)} error={errors.status} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} />
+        </div>
+      </AdminSection>
+
+      <AdminSection title="Security Verification" description="Optional. An alternative Step 2 challenge — leave both fields blank to use the private access code instead.">
+        <div className="grid gap-5 md:grid-cols-2">
+          <TextField
+            label="Security Question"
+            optional
+            value={form.securityQuestion}
+            onChange={set("securityQuestion")}
+            error={errors.securityQuestion}
+            max={userLimits.securityQuestionMax}
+            placeholder="e.g. Mother's Maiden Name"
+          />
+          <SecretField id="nu-secanswer" label="Security Answer" noun="security answer" value={form.securityAnswer} onChange={set("securityAnswer")} error={errors.securityAnswer} />
         </div>
       </AdminSection>
 

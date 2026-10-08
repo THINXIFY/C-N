@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import type { DbUser } from "@/data/users";
 import { homeFor } from "@/lib/auth";
-import { burnVerification, normalizeAccessCode, verifySecret } from "@/lib/secret-hash";
+import { burnVerification, normalizeAccessCode, normalizeSecurityAnswer, verifySecret } from "@/lib/secret-hash";
 import {
   PENDING_COOKIE,
   SESSION_COOKIE,
@@ -20,6 +20,10 @@ export interface LoginResult {
   /** "code" → credentials passed, the access-code step is next. */
   step?: "code";
   redirectTo?: string;
+  /** Set only when this account has a configured Step 2 security question — the question text itself (never
+   *  the answer). Null/absent means Step 2 uses the private access code instead. Comes from the user's own
+   *  stored configuration, never from the content-management system. */
+  securityQuestion?: string | null;
 }
 
 const PENDING_TTL_MS = 5 * 60 * 1000;
@@ -71,13 +75,17 @@ export async function loginAction(role: Role, formData: FormData): Promise<Login
     path: "/",
     maxAge: PENDING_TTL_MS / 1000,
   });
-  return { ok: true, step: "code" };
+  const securityQuestion = user.securityQuestion && user.securityAnswerHash ? user.securityQuestion : null;
+  return { ok: true, step: "code", securityQuestion };
 }
 
-/** Step 2 (user): private access code. The session is created only here, after step 1 has passed. */
+/**
+ * Step 2 (user): either the per-user security question (when configured) or the private access code.
+ * Same form field, same action, same session-creation point either way — only the verification target and
+ * wording differ. The session is created only here, after step 1 has passed.
+ */
 export async function verifyAccessCodeAction(formData: FormData): Promise<LoginResult> {
   const code = String(formData.get("code") ?? "");
-  if (!code.trim()) return { ok: false, error: "Enter your private access code." };
 
   const jar = await cookies();
   const pending = await verifyPending(jar.get(PENDING_COOKIE)?.value);
@@ -86,15 +94,22 @@ export async function verifyAccessCodeAction(formData: FormData): Promise<LoginR
     jar.delete(PENDING_COOKIE);
     return { ok: false, error: "Your sign-in expired. Please start again." };
   }
+
+  const usesSecurityQuestion = !!(user.securityQuestion && user.securityAnswerHash);
+  if (!code.trim()) return { ok: false, error: usesSecurityQuestion ? "Enter your answer." : "Enter your private access code." };
+
   if (user.status !== "active") {
     jar.delete(PENDING_COOKIE);
     return { ok: false, error: INACTIVE };
   }
 
-  // Fails closed if no access code has been set for this account.
-  if (!(await verifySecret(normalizeAccessCode(code), user.accessCodeHash))) {
+  // Fails closed if neither a security answer nor an access code has been set for this account.
+  const verified = usesSecurityQuestion
+    ? await verifySecret(normalizeSecurityAnswer(code), user.securityAnswerHash)
+    : await verifySecret(normalizeAccessCode(code), user.accessCodeHash);
+  if (!verified) {
     await new Promise((r) => setTimeout(r, 400));
-    return { ok: false, error: "Incorrect access code." };
+    return { ok: false, error: usesSecurityQuestion ? "Incorrect answer." : "Incorrect access code." };
   }
 
   jar.delete(PENDING_COOKIE);

@@ -58,10 +58,18 @@ export function LoginForm({ role, title, subtitle, content, signedInToast = "Sig
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
+  // The signed-in user's own configured security question (never the answer), or null to fall back to the
+  // private access code. Comes back from loginAction only after step 1 succeeds — never hardcoded, never CMS.
+  const [securityQuestion, setSecurityQuestion] = useState<string | null>(null);
 
   const heading =
     step === "code"
-      ? { title: content?.securityTitle ?? "Security Verification", subtitle: content?.securitySubtitle ?? "Enter your private access code to continue." }
+      ? {
+          title: content?.securityTitle ?? "Security Verification",
+          subtitle:
+            content?.securitySubtitle ??
+            (securityQuestion ? "Answer your security question to continue." : "Enter the private access code provided by your administrator to continue."),
+        }
       : { title, subtitle };
 
   function finish(res: LoginResult) {
@@ -89,14 +97,17 @@ export function LoginForm({ role, title, subtitle, content, signedInToast = "Sig
       startTransition(async () => {
         const res = await loginAction(role, data);
         if (!res.ok) return setError(res.error ?? "Unable to sign in.");
-        if (res.step === "code") return goTo("code");
+        if (res.step === "code") {
+          setSecurityQuestion(res.securityQuestion ?? null);
+          return goTo("code");
+        }
         finish(res);
       });
       return;
     }
 
     if (!String(data.get("code") ?? "").trim()) {
-      setError("Enter your private access code.");
+      setError(securityQuestion ? "Enter your answer." : "Enter your private access code.");
       return;
     }
     setError(null);
@@ -113,6 +124,7 @@ export function LoginForm({ role, title, subtitle, content, signedInToast = "Sig
 
   async function back() {
     await cancelPendingAction();
+    setSecurityQuestion(null);
     goTo("credentials");
   }
 
@@ -226,18 +238,44 @@ export function LoginForm({ role, title, subtitle, content, signedInToast = "Sig
             ) : (
               <>
                 <div>
-                  <label htmlFor="code" className="mb-2 block text-sm font-medium">
-                    {content?.accessCodeLabel ?? "Private access code"}
-                  </label>
-                  <PasswordField
-                    id="code"
-                    name="code"
-                    noun="access code"
-                    autoComplete="off"
-                    autoFocus
-                    placeholder={content?.accessCodePlaceholder ?? "Enter your access code"}
-                    aria-invalid={invalid}
-                  />
+                  {securityQuestion ? (
+                    <>
+                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+                        {content?.securityQuestionLabel ?? "Security Question"}
+                      </p>
+                      <p className="mb-4 break-words text-[15px] font-semibold text-ink">{securityQuestion}</p>
+                      <label htmlFor="code" className="mb-2 block text-sm font-medium">
+                        {content?.securityAnswerLabel ?? "Security Answer"}
+                      </label>
+                      <PasswordField
+                        id="code"
+                        name="code"
+                        noun="security answer"
+                        autoComplete="off"
+                        autoFocus
+                        placeholder={content?.securityAnswerPlaceholder ?? "Enter your answer"}
+                        aria-invalid={invalid}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+                        {content?.verificationNoticeLabel ?? "Verification required"}
+                      </p>
+                      <label htmlFor="code" className="mb-2 block text-sm font-medium">
+                        {content?.accessCodeLabel ?? "Private access code"}
+                      </label>
+                      <PasswordField
+                        id="code"
+                        name="code"
+                        noun="access code"
+                        autoComplete="off"
+                        autoFocus
+                        placeholder={content?.accessCodePlaceholder ?? "Enter your access code"}
+                        aria-invalid={invalid}
+                      />
+                    </>
+                  )}
                 </div>
 
                 <Button type="submit" loading={pending || done} className="h-[50px] w-full text-[15px]">

@@ -42,3 +42,7 @@ export async function burnVerification(secret: string): Promise<void> {
 
 /** Access codes are compared case-insensitively and ignoring surrounding spaces. */
 export const normalizeAccessCode = (code: string) => code.trim().toLowerCase();
+
+/** Security answers use the same comparison policy as access codes: trimmed and case-insensitive
+ *  (so "Christensen", "christensen" and " CHRISTENSEN " all match), and nothing more aggressive than that. */
+export const normalizeSecurityAnswer = normalizeAccessCode;

@@ -10,6 +10,12 @@ export interface DbUser {
   passwordHash: string;
   /** Null until set. Required for the user role's second login step; unused by administrators. */
   accessCodeHash: string | null;
+  /** Optional per-user Step 2 challenge. When both are set, Step 2 verifies this instead of the access code.
+   *  The question text is not sensitive (shown to the user); the answer is never stored in plaintext.
+   *  Optional for records predating this field. */
+  securityQuestion?: string | null;
+  securityAnswerHash?: string | null;
+  securityAnswerUpdatedAt?: string | null;
   displayName: string;
   businessName: string;
   email: string | null;
@@ -52,6 +58,10 @@ export interface UserSummary {
   role: UserRole;
   status: UserStatus;
   hasAccessCode: boolean;
+  /** The configured question's text — not sensitive, safe to show in the admin UI. Null when none is set. */
+  securityQuestion: string | null;
+  hasSecurityQuestion: boolean;
+  securityAnswerUpdatedAt: string | null;
   profilePhotoPath: string | null;
   profilePhotoUpdatedAt: string | null;
   createdAt: string;

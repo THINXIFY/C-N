@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { defaultUserContent, mergeUserContent, type ContentSettings, type UserContent } from "@/data/settings";
 import { defaultUserSettings, type DbUser, type EditableUserSettings, type UserRole, type UserSettings, type UserStatus, type UserSummary } from "@/data/users";
 import { mutateDb, readDb, type Database } from "./db";
-import { hashSecret, normalizeAccessCode } from "./secret-hash";
+import { hashSecret, normalizeAccessCode, normalizeSecurityAnswer } from "./secret-hash";
 import type { CreateUserInput, UserProfileInput } from "./user-validation";
 
 // User account operations. Business rules (unique usernames, protecting the last admin, no self-lockout)
@@ -26,6 +26,9 @@ export function toSummary(u: DbUser): UserSummary {
     role: u.role,
     status: u.status,
     hasAccessCode: !!u.accessCodeHash,
+    securityQuestion: u.securityQuestion ?? null,
+    hasSecurityQuestion: !!(u.securityQuestion && u.securityAnswerHash),
+    securityAnswerUpdatedAt: u.securityAnswerUpdatedAt ?? null,
     profilePhotoPath: u.profilePhotoPath ?? null,
     profilePhotoUpdatedAt: u.profilePhotoUpdatedAt ?? null,
     createdAt: u.createdAt,
@@ -106,6 +109,8 @@ export async function recordLogin(id: string): Promise<void> {
 export async function createUser(input: CreateUserInput): Promise<ServiceResult<{ id: string }>> {
   const passwordHash = await hashSecret(input.password);
   const accessCodeHash = input.accessCode ? await hashSecret(normalizeAccessCode(input.accessCode)) : null;
+  const hasSecurityQA = !!(input.securityQuestion && input.securityAnswer);
+  const securityAnswerHash = hasSecurityQA ? await hashSecret(normalizeSecurityAnswer(input.securityAnswer)) : null;
   return mutateDb<ServiceResult<{ id: string }>>((db) => {
     if (db.users.some((u) => sameName(u.username, input.username))) return fail("That username is already taken.", { username: "That username is already taken." });
     const now = new Date().toISOString();
@@ -115,6 +120,9 @@ export async function createUser(input: CreateUserInput): Promise<ServiceResult<
       username: input.username,
       passwordHash,
       accessCodeHash,
+      securityQuestion: hasSecurityQA ? input.securityQuestion : null,
+      securityAnswerHash,
+      securityAnswerUpdatedAt: hasSecurityQA ? now : null,
       displayName: input.displayName,
       businessName: input.businessName,
       email: input.email || null,
@@ -203,6 +211,38 @@ export async function setUserAccessCode(id: string, code: string): Promise<Servi
     const u = db.users.find((x) => x.id === id);
     if (!u) return fail("User not found.");
     u.accessCodeHash = accessCodeHash;
+    u.sessionVersion += 1;
+    u.updatedAt = new Date().toISOString();
+    return done(undefined);
+  });
+}
+
+/** Sets or replaces the Step 2 security question + answer together (covers both "save" and "edit/change
+ *  answer" — the answer is always re-entered, never pre-filled). Invalidates existing sessions immediately,
+ *  same as a password/access-code reset, since this changes how the account is verified. */
+export async function setUserSecurityQuestion(id: string, question: string, answer: string): Promise<ServiceResult> {
+  const securityAnswerHash = await hashSecret(normalizeSecurityAnswer(answer));
+  return mutateDb<ServiceResult>((db) => {
+    const u = db.users.find((x) => x.id === id);
+    if (!u) return fail("User not found.");
+    const now = new Date().toISOString();
+    u.securityQuestion = question;
+    u.securityAnswerHash = securityAnswerHash;
+    u.securityAnswerUpdatedAt = now;
+    u.sessionVersion += 1;
+    u.updatedAt = now;
+    return done(undefined);
+  });
+}
+
+/** Removes the security question entirely; Step 2 falls back to the private access code. */
+export async function removeUserSecurityQuestion(id: string): Promise<ServiceResult> {
+  return mutateDb<ServiceResult>((db) => {
+    const u = db.users.find((x) => x.id === id);
+    if (!u) return fail("User not found.");
+    u.securityQuestion = null;
+    u.securityAnswerHash = null;
+    u.securityAnswerUpdatedAt = null;
     u.sessionVersion += 1;
     u.updatedAt = new Date().toISOString();
     return done(undefined);

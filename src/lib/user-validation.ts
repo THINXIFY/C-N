@@ -13,6 +13,9 @@ export const userLimits = {
   passwordMax: 128,
   codeMin: 4,
   codeMax: 64,
+  securityQuestionMax: 120,
+  securityAnswerMin: 2,
+  securityAnswerMax: 128,
   greeting: 80,
   subtitle: 160,
   recordType: 80,
@@ -74,6 +77,8 @@ export interface CreateUserInput extends UserProfileInput {
   confirmPassword: string;
   accessCode: string;
   confirmAccessCode: string;
+  securityQuestion: string;
+  securityAnswer: string;
 }
 
 export function validateCreateUser(input: Partial<CreateUserInput>): Validated<CreateUserInput> {
@@ -82,8 +87,50 @@ export function validateCreateUser(input: Partial<CreateUserInput>): Validated<C
   const password = validateSecret(errors, { value: "password", confirm: "confirmPassword" }, { value: input.password, confirm: input.confirmPassword }, "Password", userLimits.passwordMin, userLimits.passwordMax);
   // Administrators sign in with username + password only; the access code is required for the user role.
   const accessCode = validateSecret(errors, { value: "accessCode", confirm: "confirmAccessCode" }, { value: input.accessCode, confirm: input.confirmAccessCode }, "Access code", userLimits.codeMin, userLimits.codeMax, id.role !== "admin");
+  // Optional: a user may be created with no security question at all.
+  const sq = validateSecurityQuestion({ securityQuestion: input.securityQuestion, securityAnswer: input.securityAnswer }, { required: false });
+  if (!sq.ok) Object.assign(errors, sq.errors);
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { ...id, password, confirmPassword: password, accessCode, confirmAccessCode: accessCode } };
+  return {
+    ok: true,
+    value: {
+      ...id,
+      password,
+      confirmPassword: password,
+      accessCode,
+      confirmAccessCode: accessCode,
+      securityQuestion: sq.ok ? (sq.value.securityQuestion ?? "") : "",
+      securityAnswer: sq.ok ? (sq.value.securityAnswer ?? "") : "",
+    },
+  };
+}
+
+/**
+ * Validates the Step 2 security-question pair. With `required: false` (the create-user form, where this is
+ * optional), leaving both fields blank is valid and resolves to `null`/`null`; filling only one is still an
+ * error. With `required: true` (the admin edit dialog, which always re-asserts both together), both must be
+ * non-empty. The answer is trimmed here; case-insensitive comparison happens at verification time.
+ */
+export function validateSecurityQuestion(
+  input: { securityQuestion?: string; securityAnswer?: string },
+  opts: { required?: boolean } = {},
+): Validated<{ securityQuestion: string | null; securityAnswer: string | null }> {
+  const errors: FieldErrors = {};
+  const question = clean(input.securityQuestion);
+  const answer = typeof input.securityAnswer === "string" ? input.securityAnswer.trim() : "";
+
+  if (!question && !answer && !opts.required) return { ok: true, value: { securityQuestion: null, securityAnswer: null } };
+
+  if (!question) errors.securityQuestion = "Security question is required.";
+  else if (question.length > userLimits.securityQuestionMax) errors.securityQuestion = `Security question must be ${userLimits.securityQuestionMax} characters or fewer.`;
+  else if (/[<>]/.test(question)) errors.securityQuestion = "Security question can’t contain < or >.";
+
+  if (!answer) errors.securityAnswer = "Security answer is required.";
+  else if (answer.length < userLimits.securityAnswerMin) errors.securityAnswer = `Security answer must be at least ${userLimits.securityAnswerMin} characters.`;
+  else if (answer.length > userLimits.securityAnswerMax) errors.securityAnswer = `Security answer must be ${userLimits.securityAnswerMax} characters or fewer.`;
+
+  if (Object.keys(errors).length) return { ok: false, errors };
+  return { ok: true, value: { securityQuestion: question, securityAnswer: answer } };
 }
 
 export function validateUserProfile(input: Partial<UserProfileInput>): Validated<UserProfileInput> {

@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #18a84a;
+  --color-brand-dark: #12873b;
+  --color-brand-soft: #eaf7ef;
+  --color-ink: #17201c;
+  --color-muted: #66736c;
+  --color-canvas: #f5f7f6;
+  --color-line: #e5eae7;
+  --color-credit: #138a3e;
+  --color-debit: #c93a3a;
+  --color-debit-soft: #fdeeee;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #edf1ef;
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* ---------- polish pass: shared motion + touch rules ---------- */
+:root {
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Gentle entrance for inline messages (validation, helper swaps). */
+@keyframes soft-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.soft-in {
+  animation: soft-in 0.18s var(--ease-out) both;
+}
+
+/* Sidebar labels fade in when the rail expands. */
+@keyframes label-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.label-in {
+  animation: label-in 0.22s var(--ease-out) both;
+}
+
+/* 16px minimum on small screens so iOS never zooms into a focused field. */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Respect reduced motion: no movement, no shimmer, effectively instant transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

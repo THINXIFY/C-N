@@ -1,7 +1,9 @@
 import { AdminSection } from "@/components/admin/AdminSection";
+import { MaintenanceModeCard } from "@/components/admin/MaintenanceModeCard";
 import { SignOutButton } from "@/components/admin/SignOutButton";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Reveal } from "@/components/ui/Reveal";
+import { getAppSettings } from "@/lib/app-settings-service";
 import { requireRole } from "@/lib/auth";
 import { formatLastLogin } from "@/lib/format";
 import { getTransactionCount } from "@/lib/records-service";
@@ -18,11 +20,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export default async function AdminSettingsPage() {
   const admin = await requireRole("admin");
-  const [count, stats] = await Promise.all([getTransactionCount(), getUserStats()]);
+  const [count, stats, appSettings] = await Promise.all([getTransactionCount(), getUserStats(), getAppSettings()]);
   return (
     <Reveal className="max-w-3xl">
       <PageHeader title="Settings" subtitle="Your administrator profile, system information and session." />
       <div className="space-y-5">
+        <AdminSection title="User-Side Availability" description="Control whether normal users can access the user-facing application.">
+          <MaintenanceModeCard initial={appSettings} />
+        </AdminSection>
+
         <AdminSection title="Current Admin Profile">
           <dl className="-my-3.5 divide-y divide-line">
             <Row label="Display name">{admin.displayName}</Row>

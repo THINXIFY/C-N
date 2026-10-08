@@ -13,6 +13,7 @@ import {
   ACCOUNT_FIELDS,
   DASHBOARD_FIELDS,
   LOGIN_FIELDS,
+  MAINTENANCE_FIELDS,
   MESSAGES_FIELDS,
   NAVIGATION_FIELDS,
   NOTICES_FIELDS,
@@ -41,6 +42,12 @@ const TABS: Array<{ key: SectionKey; label: string; description: string; specs: 
     label: "Disclaimers & Notices",
     description: "Safety and positioning notices. Reword and retone freely, but each must keep saying this is a private, internally-maintained record — not an official, bank-verified statement.",
     specs: NOTICES_FIELDS,
+  },
+  {
+    key: "maintenance",
+    label: "Maintenance",
+    description: "Wording shown on the public /maintenance page. Whether maintenance mode is actually on is controlled separately, in Settings → User-Side Availability.",
+    specs: MAINTENANCE_FIELDS,
   },
 ];
 
@@ -348,7 +355,7 @@ export function ContentEditor({ initial }: { initial: ContentSettings }) {
         open={resetAllOpen}
         onClose={() => !resetPending && setResetAllOpen(false)}
         title="Reset all content to defaults?"
-        description="This restores the default wording across every section — login, navigation, dashboard, transactions, account, support, messages and disclaimers & notices — for every user. Unsaved changes will be discarded. This can’t be undone."
+        description="This restores the default wording across every section — login, navigation, dashboard, transactions, account, support, messages, disclaimers & notices and maintenance — for every user. Unsaved changes will be discarded. This can’t be undone."
       >
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={() => setResetAllOpen(false)} disabled={resetPending}>Cancel</Button>

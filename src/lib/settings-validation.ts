@@ -185,6 +185,15 @@ export const NOTICES_FIELDS: FieldSpec[] = [
   { key: "transactionDetailHelperText", label: "Transaction Detail Helper", helper: "Displayed at the bottom of the transaction-detail panel.", max: 120 },
 ];
 
+export const MAINTENANCE_FIELDS: FieldSpec[] = [
+  { key: "eyebrow", label: "Maintenance Eyebrow", helper: "Small label above the heading on the /maintenance page.", max: 40 },
+  { key: "heading", label: "Maintenance Heading", helper: "Main heading on the /maintenance page.", max: 100 },
+  { key: "message", label: "Maintenance Message", helper: "Primary explanation shown on the /maintenance page.", max: 300, multiline: true },
+  { key: "secondaryMessage", label: "Secondary Message", helper: "Smaller note under the main message.", max: 150 },
+  { key: "refreshButtonLabel", label: "Refresh Button Label", helper: "", max: 40 },
+  { key: "supportButtonLabel", label: "Support Button Label", helper: "Shown only when Support page notices give users somewhere to go; optional.", max: 40 },
+];
+
 export const CORE_REQUIRED_PHRASE: Record<string, string> = {
   loginFooterNotice: "not an official bank",
   dashboardInfoStrip: "not bank-verified",
@@ -257,6 +266,21 @@ export function validateContent(input: Partial<UserContent>): Validated<UserCont
   const notices = validateGroup(errors, "notices", input.notices, NOTICES_FIELDS);
   for (const spec of NOTICES_FIELDS) checkCoreNotice(errors, `notices.${spec.key}`, spec.key, notices[spec.key], spec.label);
 
+  const maintenance = validateGroup(errors, "maintenance", input.maintenance, MAINTENANCE_FIELDS);
+
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { login, navigation, dashboard, transactions, account, support, messages, notices: notices as unknown as UserContent["notices"] } };
+  return {
+    ok: true,
+    value: {
+      login,
+      navigation,
+      dashboard,
+      transactions,
+      account,
+      support,
+      messages,
+      notices: notices as unknown as UserContent["notices"],
+      maintenance: maintenance as unknown as UserContent["maintenance"],
+    },
+  };
 }

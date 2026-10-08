@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { AppSettings } from "@/data/app-settings";
 import type { ContentSettings, UserContent } from "@/data/settings";
 import type { DbUser, EditableUserSettings, UserStatus } from "@/data/users";
 import { deleteAvatarFile, saveAvatarFile, validatePhotoFile } from "@/lib/avatar-storage";
+import { setMaintenanceEstimatedReturn, setMaintenanceMode } from "@/lib/app-settings-service";
 import { getCurrentUser } from "@/lib/auth";
+import { text } from "@/lib/settings-validation";
 import {
   clearUserPhoto,
   createUser,
@@ -76,7 +79,7 @@ export async function updateContentSettings(input: UserContent): Promise<Content
   return { ok: true, settings };
 }
 
-const CONTENT_SECTIONS = ["login", "navigation", "dashboard", "transactions", "account", "support", "messages", "notices"] as const;
+const CONTENT_SECTIONS = ["login", "navigation", "dashboard", "transactions", "account", "support", "messages", "notices", "maintenance"] as const;
 type ContentSection = (typeof CONTENT_SECTIONS)[number];
 
 export async function resetContentSectionAction(section: ContentSection): Promise<ContentSaveResult> {
@@ -95,6 +98,40 @@ export async function resetAllContentAction(): Promise<ContentSaveResult> {
   if (!(await requireAdminUser())) return DENIED;
   try {
     const settings = await resetAllContent();
+    refreshViews();
+    return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+// ---------- site availability (maintenance mode) — not part of the CMS ----------
+
+export interface AppSettingsResult extends SaveResult {
+  settings?: AppSettings;
+}
+
+export async function setMaintenanceModeAction(enabled: boolean): Promise<AppSettingsResult> {
+  const admin = await requireAdminUser();
+  if (!admin) return DENIED;
+  try {
+    const settings = await setMaintenanceMode(enabled, admin.displayName);
+    refreshViews();
+    return { ok: true, settings };
+  } catch {
+    return FAILED;
+  }
+}
+
+const ESTIMATED_RETURN_MAX = 80;
+
+export async function setMaintenanceEstimatedReturnAction(estimatedReturn: string): Promise<AppSettingsResult> {
+  if (!(await requireAdminUser())) return DENIED;
+  const errors: FieldErrors = {};
+  const value = text(errors, "estimatedReturn", estimatedReturn, "Estimated return", ESTIMATED_RETURN_MAX, { required: false });
+  if (Object.keys(errors).length) return { ok: false, fieldErrors: errors };
+  try {
+    const settings = await setMaintenanceEstimatedReturn(value);
     refreshViews();
     return { ok: true, settings };
   } catch {

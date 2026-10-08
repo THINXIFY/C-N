@@ -184,6 +184,19 @@ export interface NoticesContent {
   transactionDetailHelperText: string;
 }
 
+/**
+ * Wording shown on the public /maintenance page. This is presentation only — whether maintenance mode is
+ * actually ON is operational state in src/data/app-settings.ts, never here (see that file's header comment).
+ */
+export interface MaintenanceContent {
+  eyebrow: string;
+  heading: string;
+  message: string;
+  secondaryMessage: string;
+  refreshButtonLabel: string;
+  supportButtonLabel: string;
+}
+
 export interface UserContent {
   login: LoginContent;
   navigation: NavigationContent;
@@ -193,6 +206,7 @@ export interface UserContent {
   support: SupportContent;
   messages: MessagesContent;
   notices: NoticesContent;
+  maintenance: MaintenanceContent;
 }
 
 export interface ContentSettings extends UserContent {
@@ -360,6 +374,14 @@ export const defaultUserContent: UserContent = {
     accountBalanceHelperText: "Internal record · Not bank-verified",
     transactionDetailHelperText: "Internal record · Not bank-verified",
   },
+  maintenance: {
+    eyebrow: "SYSTEM UPDATE",
+    heading: "We're making a few improvements.",
+    message: "The user portal is temporarily unavailable while we complete scheduled updates. Please check back shortly.",
+    secondaryMessage: "Thank you for your patience.",
+    refreshButtonLabel: "Refresh Page",
+    supportButtonLabel: "Contact Support",
+  },
 };
 
 export const defaultContentSettings: ContentSettings = { ...defaultUserContent, updatedAt: null };
@@ -385,6 +407,7 @@ export function mergeUserContent(stored: Partial<ContentSettings> | null | undef
     support: { ...d.support, ...s.support, topics },
     messages: { ...d.messages, ...s.messages },
     notices: { ...d.notices, ...s.notices },
+    maintenance: { ...d.maintenance, ...s.maintenance },
     updatedAt: typeof s.updatedAt === "string" ? s.updatedAt : null,
   };
 }

@@ -3,18 +3,22 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { accountSeed } from "@/data/records";
+import { defaultAppSettings, type AppSettings } from "@/data/app-settings";
 import { defaultContentSettings, type ContentSettings } from "@/data/settings";
 import { defaultUserSettings, type DbUser, type UserSettings } from "@/data/users";
 import { hashSecret, normalizeAccessCode } from "./secret-hash";
 
-// Tiny persistent store: tables `users`, `user_settings`, `content_settings` in one JSON file (hashes only,
-// never plaintext credentials). Reads are cheap; writes are serialized and atomic. To move to Supabase/Postgres,
-// reimplement `readDb` / `mutateDb` (and nothing else changes).
+// Tiny persistent store: tables `users`, `user_settings`, `content_settings`, `app_settings` in one JSON file
+// (hashes only, never plaintext credentials). Reads are cheap; writes are serialized and atomic. To move to
+// Supabase/Postgres, reimplement `readDb` / `mutateDb` (and nothing else changes).
 export interface Database {
   version: 1;
   users: DbUser[];
   userSettings: UserSettings[];
   contentSettings: ContentSettings;
+  /** Global operational settings (currently just maintenance mode) — not part of the CMS. Optional so older
+   *  db.json files (predating this field) parse without error; readers fall back to defaults. */
+  appSettings?: AppSettings;
   /** The user whose profile owns the (read-only) financial record. */
   financialOwnerId: string | null;
 }
@@ -51,6 +55,7 @@ async function seed(): Promise<Database> {
     users: [],
     userSettings: [],
     contentSettings: structuredClone(defaultContentSettings),
+    appSettings: structuredClone(defaultAppSettings),
     financialOwnerId: null,
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { logoutAction } from "@/app/actions/auth";
@@ -29,9 +30,11 @@ interface Props {
   signedOutToast?: string;
   /** Admin-editable (notices.dashboardInfoStrip); shown on both the user and admin side since it's the same notice. */
   noticeText?: string;
+  /** Admin-only — never passed on the user side. Shows a small status banner when maintenance mode is on. */
+  maintenanceActive?: boolean;
 }
 
-export function AppShell({ variant, profile, notifications, children, navLabels, accountLabel, logoutLabel, signedOutToast = "Signed out successfully", noticeText }: Props) {
+export function AppShell({ variant, profile, notifications, children, navLabels, accountLabel, logoutLabel, signedOutToast = "Signed out successfully", noticeText, maintenanceActive }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const nav = navLabels ? applyNavLabels(navLabels) : (variant === "admin" ? adminNav : userNav);
@@ -100,6 +103,15 @@ export function AppShell({ variant, profile, notifications, children, navLabels,
 
       <div className={cn("transition-[padding] duration-200 ease-out md:pl-[72px]", !collapsed && "lg:pl-[252px]")}>
         <RecordNotice text={noticeText} />
+        {variant === "admin" && maintenanceActive && (
+          <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 border-b border-[#f0c987] bg-[#fdf3dd] px-4 py-2 text-center text-xs font-medium text-[#8a6116] sm:text-sm">
+            <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>Maintenance Mode is active — normal users are seeing the maintenance page.</span>
+            <Link href="/admin/settings" className="underline underline-offset-2 hover:no-underline">
+              Manage in Settings
+            </Link>
+          </div>
+        )}
 
         {/* Mobile top navbar */}
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-white/90 px-4 backdrop-blur md:hidden">

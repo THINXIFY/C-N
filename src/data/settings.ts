@@ -425,7 +425,7 @@ export const defaultUserContent: UserContent = {
     confirmCheckboxLabel: "I confirm that the information entered is correct.",
     submitButtonLabel: "Transfer Now",
     acceptedTitle: "Funds transferred successfully",
-    acceptedMessage: "Your transfer request has been sent and received successfully. ",
+    acceptedMessage: "Your funds have been successfully sent and received. The transfer is complete.",
     backToDashboardLabel: "Back to Dashboard",
     failureTitle: "Transfer service temporarily unavailable",
     failureMessage: "We’re unable to process your transfer request at this time.",

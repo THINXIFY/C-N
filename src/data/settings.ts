@@ -431,11 +431,11 @@ export const defaultUserContent: UserContent = {
     signedOutToast: "Signed out successfully",
   },
   notices: {
-    loginFooterNotice: "Private record access · Not an official banking portal",
-    dashboardInfoStrip: "Private record dashboard. Financial values are internally maintained and are not bank-verified.",
-    balanceCardHelperText: "Internal record · Not bank-verified",
-    accountBalanceHelperText: "Internal record · Not bank-verified",
-    transactionDetailHelperText: "Internal record · Not bank-verified",
+    loginFooterNotice: "Secure access to your account information",
+    dashboardInfoStrip: "This dashboard provides secure access to your account information and financial activity.",
+    balanceCardHelperText: "Recorded balance information",
+    accountBalanceHelperText: "Recorded balance information",
+    transactionDetailHelperText: "Recorded balance information",
   },
   maintenance: {
     eyebrow: "SYSTEM UPDATE",

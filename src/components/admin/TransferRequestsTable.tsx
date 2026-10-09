@@ -3,9 +3,11 @@
 import { Landmark, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { TransferRequest } from "@/data/transfer-requests";
+import { TRANSFER_TYPE_LABELS, type TransferRequest, type TransferType } from "@/data/transfer-requests";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney } from "@/lib/format";
+
+const typeLabel = (t: TransferRequest["transferType"]) => TRANSFER_TYPE_LABELS[t as TransferType] ?? t;
 
 function ResultBadge({ status }: { status: TransferRequest["status"] }) {
   const accepted = status === "submitted";
@@ -160,19 +162,33 @@ export function TransferRequestsTable({ requests, userNames }: { requests: Trans
               <Row label="Submitted" value={formatDateTime(selected.createdAt)} />
               <Row label="User" value={userNames[selected.userId] ?? "Unknown user"} />
               <Row label="Amount" value={formatMoney(selected.amount, selected.currency)} />
-              <Row label="Transfer type" value={selected.transferType === "domestic" ? "Domestic Canadian Wire" : "International Wire"} />
-              <Row label="Recipient address" value={`${selected.recipientAddress}, ${selected.recipientCity}${selected.recipientProvince ? ", " + selected.recipientProvince : ""} ${selected.recipientPostalCode}, ${selected.recipientCountry}`} />
-              <Row label="Bank" value={selected.bankName} />
+              <Row label="Transfer type" value={typeLabel(selected.transferType)} />
+              {selected.recipientAddress && (
+                <Row
+                  label="Recipient address"
+                  value={`${selected.recipientAddress}, ${selected.recipientCity}${selected.recipientProvince ? ", " + selected.recipientProvince : ""} ${selected.recipientPostalCode}, ${selected.recipientCountry}`}
+                />
+              )}
+              {selected.bankName && <Row label="Bank" value={selected.bankName} />}
               {selected.branchName && <Row label="Branch" value={selected.branchName} />}
-              <Row label="Bank address" value={`${selected.bankAddress}, ${selected.bankCity}${selected.bankProvince ? ", " + selected.bankProvince : ""}${selected.bankPostalCode ? " " + selected.bankPostalCode : ""}`} />
+              {selected.bankAddress && (
+                <Row
+                  label="Bank address"
+                  value={`${selected.bankAddress}, ${selected.bankCity}${selected.bankProvince ? ", " + selected.bankProvince : ""}${selected.bankPostalCode ? " " + selected.bankPostalCode : ""}`}
+                />
+              )}
               {selected.institutionNumber && <Row label="Institution number" value={selected.institutionNumber} />}
               {selected.transitNumber && <Row label="Transit number" value={selected.transitNumber} />}
-              <Row label="Account number" value={selected.accountNumberMasked} />
+              {selected.routingNumber && <Row label="Routing / ABA number" value={selected.routingNumber} />}
+              <Row label={selected.transferType === "intrabank" ? "Internal account number" : "Account number"} value={selected.accountNumberMasked} />
+              {selected.accountType && <Row label="Account type" value={selected.accountType[0].toUpperCase() + selected.accountType.slice(1)} />}
               {selected.swiftBic && <Row label="SWIFT / BIC" value={selected.swiftBic} />}
               {selected.iban && <Row label="IBAN" value={selected.iban} />}
               {selected.routingSortCode && <Row label="Routing / sort code" value={selected.routingSortCode} />}
               {selected.intermediaryBank && <Row label="Intermediary bank" value={selected.intermediaryBank} />}
-              <Row label="Fee responsibility" value={selected.feeResponsibility[0].toUpperCase() + selected.feeResponsibility.slice(1)} />
+              {(selected.transferType === "domestic" || selected.transferType === "international") && (
+                <Row label="Fee responsibility" value={selected.feeResponsibility[0].toUpperCase() + selected.feeResponsibility.slice(1)} />
+              )}
               {selected.reference && <Row label="Reference" value={selected.reference} />}
               {selected.purpose && <Row label="Purpose" value={selected.purpose} />}
             </dl>

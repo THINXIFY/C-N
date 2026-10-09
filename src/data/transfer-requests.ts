@@ -2,11 +2,25 @@
 // one never touches financial balances or transaction history (see src/data/records.ts, untouched by this
 // file). The raw bank account number is never stored, only a masked version (see transfer-requests-service.ts).
 
-export const TRANSFER_CURRENCIES = ["CAD", "USD", "EUR", "GBP"] as const;
+export const TRANSFER_CURRENCIES = ["USD", "CAD", "EUR", "GBP"] as const;
 export type TransferCurrency = (typeof TRANSFER_CURRENCIES)[number];
 
-export const TRANSFER_TYPES = ["domestic", "international"] as const;
+/** "domestic" and "ach" are USD-oriented (routing/ABA number); "international" is SWIFT/IBAN-oriented;
+ *  "intrabank" is a simplified internal-recipient request with no external bank details. Existing stored
+ *  requests with transferType "domestic"/"international" from before this type set was introduced remain
+ *  fully readable — only the submission FORM's field set changed, not the stored shape. */
+export const TRANSFER_TYPES = ["domestic", "ach", "international", "intrabank"] as const;
 export type TransferType = (typeof TRANSFER_TYPES)[number];
+
+export const TRANSFER_TYPE_LABELS: Record<TransferType, string> = {
+  domestic: "Domestic Wire",
+  ach: "ACH Transfer",
+  international: "International Wire",
+  intrabank: "Intra-Bank Transfer",
+};
+
+export const ACCOUNT_TYPES = ["checking", "savings"] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 /** User-facing labels only — never exposed as the SWIFT charge-bearer codes they conceptually map to
  *  (sender → OUR, recipient → BEN, shared → SHA). */
@@ -46,8 +60,14 @@ export interface TransferRequest {
   bankCity: string;
   bankProvince: string;
   bankPostalCode: string;
+  /** Legacy Canadian-wire fields. The current form never collects these (replaced by routingNumber for
+   *  Domestic Wire / ACH) — kept only so pre-existing stored requests remain fully readable. */
   institutionNumber: string;
   transitNumber: string;
+  /** ABA / ACH routing number — Domestic Wire and ACH Transfer. */
+  routingNumber: string;
+  /** ACH Transfer only; "" when not applicable. */
+  accountType: AccountType | "";
   /** Masked except the last 4 digits (e.g. "•••• 4321"). The raw account number is never stored. */
   accountNumberMasked: string;
   swiftBic: string;

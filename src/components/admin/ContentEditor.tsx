@@ -12,6 +12,8 @@ import { defaultUserContent, type ContentSettings, type UserContent } from "@/da
 import {
   ACCOUNT_FIELDS,
   DASHBOARD_FIELDS,
+  FX_SALES_FIELDS,
+  LOANS_FIELDS,
   LOGIN_FIELDS,
   MAINTENANCE_FIELDS,
   MESSAGES_FIELDS,
@@ -20,6 +22,7 @@ import {
   SUPPORT_FIELDS,
   TRANSACTIONS_FIELDS,
   TRANSFER_FIELDS,
+  ZELLE_FIELDS,
   limits,
   validateContent,
   type FieldErrors,
@@ -58,6 +61,9 @@ const TABS: Array<{ key: SectionKey; label: string; description: string; specs: 
     description: "Wording shown on /dashboard/transfer, including the accepted/failure result messages. Whether transfers are enabled and which result users see is controlled separately, in Settings → Transfer Request Settings.",
     specs: TRANSFER_FIELDS,
   },
+  { key: "zelle", label: "Zelle", description: "Wording shown on /dashboard/zelle.", specs: ZELLE_FIELDS },
+  { key: "loans", label: "Loans", description: "Wording shown on /dashboard/loans.", specs: LOANS_FIELDS },
+  { key: "fxSales", label: "FX Sales", description: "Wording shown on /dashboard/fx-sales.", specs: FX_SALES_FIELDS },
 ];
 
 function FieldGroup({

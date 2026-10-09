@@ -9,15 +9,13 @@ import { SelectInput, TextAreaField, TextField } from "@/components/admin/fields
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import type { TransferContent } from "@/data/settings";
-import { TRANSFER_CURRENCIES } from "@/data/transfer-requests";
+import { ACCOUNT_TYPES, TRANSFER_CURRENCIES, TRANSFER_TYPES, TRANSFER_TYPE_LABELS, type TransferType } from "@/data/transfer-requests";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { SWIFT_BIC_MAX, validateTransferRequest, type TransferFieldErrors, type TransferFormInput } from "@/lib/transfer-validation";
 
 const CURRENCY_OPTIONS = TRANSFER_CURRENCIES.map((c) => ({ value: c, label: c }));
-const TYPE_OPTIONS = [
-  { value: "domestic", label: "Domestic Canadian Wire" },
-  { value: "international", label: "International Wire" },
-];
+const TYPE_OPTIONS = TRANSFER_TYPES.map((t) => ({ value: t, label: TRANSFER_TYPE_LABELS[t] }));
+const ACCOUNT_TYPE_OPTIONS = ACCOUNT_TYPES.map((t) => ({ value: t, label: t === "checking" ? "Checking" : "Savings" }));
 const FEE_OPTIONS = [
   { value: "sender", label: "Sender" },
   { value: "recipient", label: "Recipient" },
@@ -26,7 +24,7 @@ const FEE_OPTIONS = [
 
 const emptyForm: TransferFormInput = {
   amount: "",
-  currency: "CAD",
+  currency: "USD",
   transferType: "domestic",
   reference: "",
   purpose: "",
@@ -42,9 +40,9 @@ const emptyForm: TransferFormInput = {
   bankCity: "",
   bankProvince: "",
   bankPostalCode: "",
-  institutionNumber: "",
-  transitNumber: "",
+  routingNumber: "",
   accountNumber: "",
+  accountType: "",
   swiftBic: "",
   iban: "",
   routingSortCode: "",
@@ -162,7 +160,23 @@ export function TransferForm({ content }: { content: TransferContent }) {
   }
 
   const isDomestic = form.transferType === "domestic";
+  const isAch = form.transferType === "ach";
   const isInternational = form.transferType === "international";
+  const isIntraBank = form.transferType === "intrabank";
+  const hasExternalBank = isDomestic || isAch || isInternational;
+  const hasFullAddress = isDomestic || isInternational; // city/state/zip relevant beyond the street line
+  const feeApplicable = isDomestic || isInternational;
+  const typeLabel = TRANSFER_TYPE_LABELS[form.transferType as TransferType] ?? form.transferType;
+  const typeHelperText: Record<TransferType, string> = {
+    domestic: content.domesticWireHelperText,
+    ach: content.achHelperText,
+    international: content.internationalWireHelperText,
+    intrabank: content.intraBankHelperText,
+  };
+  const stateLabel = isDomestic ? "State" : "Province / State";
+  const zipLabel = isDomestic ? "ZIP Code" : "Postal / ZIP Code";
+  const bankStateLabel = isDomestic ? "Bank State" : "Bank Province";
+  const bankZipLabel = isDomestic ? "Bank ZIP" : "Bank Postal Code";
 
   if (phase === "result" && resultStatus === "submitted") {
     return (
@@ -182,7 +196,7 @@ export function TransferForm({ content }: { content: TransferContent }) {
           <dl className="divide-y divide-line/80">
             <ReviewRow label="Amount" value={formatMoney(Number(form.amount), form.currency)} />
             <ReviewRow label="Recipient" value={form.recipientName} />
-            <ReviewRow label="Bank" value={form.bankName} />
+            {hasExternalBank && <ReviewRow label="Bank" value={form.bankName} />}
             {form.reference && <ReviewRow label="Reference" value={form.reference} />}
             {resultMeta && <ReviewRow label="Submitted" value={formatDateTime(resultMeta.createdAt)} />}
             {resultMeta && <PsidRow psid={resultMeta.psid} />}
@@ -247,14 +261,15 @@ export function TransferForm({ content }: { content: TransferContent }) {
       <AdminSection title={content.reviewTitle} description="Please review the details below before submitting.">
         <dl className="divide-y divide-line">
           <ReviewRow label={content.amountLabel} value={formatMoney(Number(form.amount), form.currency)} />
-          <ReviewRow label={content.transferTypeLabel} value={isDomestic ? "Domestic Canadian Wire" : "International Wire"} />
+          <ReviewRow label={content.transferTypeLabel} value={typeLabel} />
           <ReviewRow label="Recipient" value={form.recipientName} />
-          <ReviewRow label="Bank" value={form.bankName} />
-          <ReviewRow label="Account number" value={maskForDisplay(form.accountNumber)} />
-          {isDomestic && <ReviewRow label="Institution number" value={form.institutionNumber} />}
-          {isDomestic && <ReviewRow label="Transit number" value={form.transitNumber} />}
+          {hasExternalBank && <ReviewRow label="Bank" value={form.bankName} />}
+          <ReviewRow label={isIntraBank ? "Internal account number" : "Account number"} value={maskForDisplay(form.accountNumber)} />
+          {(isDomestic || isAch) && form.routingNumber && <ReviewRow label="Routing / ABA number" value={form.routingNumber} />}
+          {isAch && form.accountType && <ReviewRow label="Account type" value={form.accountType === "checking" ? "Checking" : "Savings"} />}
           {form.swiftBic && <ReviewRow label="SWIFT / BIC" value={form.swiftBic} />}
           {form.reference && <ReviewRow label="Reference" value={form.reference} />}
+          {form.purpose && <ReviewRow label="Purpose" value={form.purpose} />}
         </dl>
 
         {submitError && (
@@ -289,9 +304,21 @@ export function TransferForm({ content }: { content: TransferContent }) {
     <div className="space-y-5">
       <AdminSection title="Transfer Details">
         <div className="grid gap-5 sm:grid-cols-2">
-          <TextField label={content.amountLabel} value={form.amount} onChange={(v) => set("amount", v)} inputMode="decimal" placeholder="0.00" error={errors.amount} />
+          <TextField
+            label={content.amountLabel}
+            value={form.amount}
+            onChange={(v) => set("amount", v.replace(/,/g, ""))}
+            inputMode="decimal"
+            placeholder="0.00"
+            error={errors.amount}
+          />
           <SelectInput label={content.currencyLabel} value={form.currency} onChange={(v) => set("currency", v)} options={CURRENCY_OPTIONS} error={errors.currency} />
-          <SelectInput label={content.transferTypeLabel} value={form.transferType} onChange={(v) => set("transferType", v)} options={TYPE_OPTIONS} error={errors.transferType} />
+          <div className="sm:col-span-2">
+            <SelectInput label={content.transferTypeLabel} value={form.transferType} onChange={(v) => set("transferType", v)} options={TYPE_OPTIONS} error={errors.transferType} />
+            {typeHelperText[form.transferType as TransferType] && (
+              <p className="mt-1.5 text-[13px] leading-snug text-muted">{typeHelperText[form.transferType as TransferType]}</p>
+            )}
+          </div>
           <TextField label="Reference / Payment Description" value={form.reference} onChange={(v) => set("reference", v)} optional max={200} error={errors.reference} />
           <div className="sm:col-span-2">
             <TextAreaField label="Purpose of Transfer" value={form.purpose} onChange={(v) => set("purpose", v)} max={500} rows={2} error={errors.purpose} />
@@ -302,84 +329,123 @@ export function TransferForm({ content }: { content: TransferContent }) {
       <AdminSection title={content.recipientSectionTitle}>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <TextField label="Recipient / Beneficiary Full Name" value={form.recipientName} onChange={(v) => set("recipientName", v)} max={150} error={errors.recipientName} />
+            <TextField label="Recipient / Beneficiary Name" value={form.recipientName} onChange={(v) => set("recipientName", v)} max={150} error={errors.recipientName} />
           </div>
-          <div className="sm:col-span-2">
-            <TextField label="Recipient Address" value={form.recipientAddress} onChange={(v) => set("recipientAddress", v)} max={250} error={errors.recipientAddress} />
-          </div>
-          <TextField label="City" value={form.recipientCity} onChange={(v) => set("recipientCity", v)} max={100} error={errors.recipientCity} />
-          <TextField
-            label="Province / State"
-            value={form.recipientProvince}
-            onChange={(v) => set("recipientProvince", v)}
-            max={100}
-            optional={!isDomestic}
-            error={errors.recipientProvince}
-          />
-          <TextField label="Postal / ZIP Code" value={form.recipientPostalCode} onChange={(v) => set("recipientPostalCode", v)} max={20} error={errors.recipientPostalCode} />
-          <TextField label="Country" value={form.recipientCountry} onChange={(v) => set("recipientCountry", v)} max={100} error={errors.recipientCountry} />
-        </div>
-      </AdminSection>
 
-      <AdminSection title={content.bankSectionTitle}>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <TextField label="Bank Name" value={form.bankName} onChange={(v) => set("bankName", v)} max={150} error={errors.bankName} />
-          <TextField label="Branch Name" value={form.branchName} onChange={(v) => set("branchName", v)} max={150} optional error={errors.branchName} />
-          <div className="sm:col-span-2">
-            <TextField label="Bank / Branch Address" value={form.bankAddress} onChange={(v) => set("bankAddress", v)} max={250} error={errors.bankAddress} />
-          </div>
-          <TextField label="City" value={form.bankCity} onChange={(v) => set("bankCity", v)} max={100} error={errors.bankCity} />
-          <TextField label="Province" value={form.bankProvince} onChange={(v) => set("bankProvince", v)} max={100} optional={!isDomestic} error={errors.bankProvince} />
-          <TextField label="Postal Code" value={form.bankPostalCode} onChange={(v) => set("bankPostalCode", v)} max={20} optional={!isDomestic} error={errors.bankPostalCode} />
-          <TextField
-            label="Institution Number"
-            value={form.institutionNumber}
-            onChange={(v) => set("institutionNumber", v.replace(/\D/g, "").slice(0, 3))}
-            helper="3-digit Canadian financial institution number"
-            inputMode="numeric"
-            optional={!isDomestic}
-            error={errors.institutionNumber}
-          />
-          <TextField
-            label="Transit Number"
-            value={form.transitNumber}
-            onChange={(v) => set("transitNumber", v.replace(/\D/g, "").slice(0, 5))}
-            helper="5-digit branch transit number"
-            inputMode="numeric"
-            optional={!isDomestic}
-            error={errors.transitNumber}
-          />
-          <TextField
-            label="Account Number"
-            value={form.accountNumber}
-            onChange={(v) => set("accountNumber", v.replace(/\D/g, "").slice(0, 20))}
-            inputMode="numeric"
-            error={errors.accountNumber}
-          />
-          <TextField
-            label="SWIFT / BIC Code"
-            value={form.swiftBic}
-            onChange={(v) => set("swiftBic", v)}
-            max={SWIFT_BIC_MAX}
-            optional
-            helper="Enter the recipient bank's SWIFT / BIC code if applicable."
-            error={errors.swiftBic}
-          />
-          {isInternational && (
+          {!isIntraBank && (
+            <div className="sm:col-span-2">
+              <TextField label="Recipient Address" value={form.recipientAddress} onChange={(v) => set("recipientAddress", v)} max={250} error={errors.recipientAddress} />
+            </div>
+          )}
+
+          {(isDomestic || isInternational) && (
             <>
-              <TextField label="IBAN" value={form.iban} onChange={(v) => set("iban", v)} max={34} optional error={errors.iban} />
-              <TextField label="Routing / Sort Code" value={form.routingSortCode} onChange={(v) => set("routingSortCode", v)} max={20} optional error={errors.routingSortCode} />
-              <div className="sm:col-span-2">
-                <TextField label="Intermediary Bank" value={form.intermediaryBank} onChange={(v) => set("intermediaryBank", v)} max={200} optional error={errors.intermediaryBank} />
-              </div>
+              <TextField label="City" value={form.recipientCity} onChange={(v) => set("recipientCity", v)} max={100} optional={!isDomestic} error={errors.recipientCity} />
+              <TextField label={stateLabel} value={form.recipientProvince} onChange={(v) => set("recipientProvince", v)} max={100} optional={!isDomestic} error={errors.recipientProvince} />
+              <TextField
+                label={zipLabel}
+                value={form.recipientPostalCode}
+                onChange={(v) => set("recipientPostalCode", v)}
+                max={20}
+                optional={!isDomestic}
+                error={errors.recipientPostalCode}
+              />
+              <TextField label="Country" value={form.recipientCountry} onChange={(v) => set("recipientCountry", v)} max={100} error={errors.recipientCountry} />
             </>
+          )}
+
+          {isIntraBank && (
+            <div className="sm:col-span-2">
+              <TextField
+                label="Internal Account Number"
+                value={form.accountNumber}
+                onChange={(v) => set("accountNumber", v.replace(/\D/g, "").slice(0, 20))}
+                inputMode="numeric"
+                helper="The internal account or recipient identifier for this transfer."
+                error={errors.accountNumber}
+              />
+            </div>
           )}
         </div>
       </AdminSection>
 
-      <AdminSection title="Fee Instructions" description="Who should pay transfer fees?">
-        <SelectInput label="Fee responsibility" value={form.feeResponsibility} onChange={(v) => set("feeResponsibility", v)} options={FEE_OPTIONS} error={errors.feeResponsibility} />
-      </AdminSection>
+      {hasExternalBank && (
+        <AdminSection title={content.bankSectionTitle}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <TextField label="Bank Name" value={form.bankName} onChange={(v) => set("bankName", v)} max={150} error={errors.bankName} />
+            {(isDomestic || isInternational) && (
+              <TextField label="Branch Name" value={form.branchName} onChange={(v) => set("branchName", v)} max={150} optional error={errors.branchName} />
+            )}
+
+            {hasFullAddress && (
+              <div className="sm:col-span-2">
+                <TextField label="Bank / Branch Address" value={form.bankAddress} onChange={(v) => set("bankAddress", v)} max={250} error={errors.bankAddress} />
+              </div>
+            )}
+            {(isDomestic || isInternational) && (
+              <>
+                <TextField label="Bank City" value={form.bankCity} onChange={(v) => set("bankCity", v)} max={100} optional={!isDomestic} error={errors.bankCity} />
+                <TextField label={bankStateLabel} value={form.bankProvince} onChange={(v) => set("bankProvince", v)} max={100} optional={!isDomestic} error={errors.bankProvince} />
+                <TextField label={bankZipLabel} value={form.bankPostalCode} onChange={(v) => set("bankPostalCode", v)} max={20} optional={!isDomestic} error={errors.bankPostalCode} />
+              </>
+            )}
+
+            {(isDomestic || isAch) && (
+              <TextField
+                label="Routing / ABA Number"
+                value={form.routingNumber}
+                onChange={(v) => set("routingNumber", v.replace(/\D/g, "").slice(0, 9))}
+                inputMode="numeric"
+                helper="9-digit U.S. routing (ABA) number."
+                error={errors.routingNumber}
+              />
+            )}
+
+            <TextField
+              label="Account Number"
+              value={form.accountNumber}
+              onChange={(v) => set("accountNumber", v.replace(/\D/g, "").slice(0, 20))}
+              inputMode="numeric"
+              error={errors.accountNumber}
+            />
+
+            {isAch && (
+              <SelectInput
+                label="Account Type"
+                value={form.accountType}
+                onChange={(v) => set("accountType", v)}
+                options={[{ value: "", label: "Not specified" }, ...ACCOUNT_TYPE_OPTIONS]}
+                error={errors.accountType}
+              />
+            )}
+
+            {isInternational && (
+              <>
+                <TextField
+                  label="SWIFT / BIC Code"
+                  value={form.swiftBic}
+                  onChange={(v) => set("swiftBic", v)}
+                  max={SWIFT_BIC_MAX}
+                  optional
+                  helper="Enter the recipient bank's SWIFT / BIC code if applicable."
+                  error={errors.swiftBic}
+                />
+                <TextField label="IBAN" value={form.iban} onChange={(v) => set("iban", v)} max={34} optional helper="Not all countries use IBAN." error={errors.iban} />
+                <TextField label="Routing / Sort Code" value={form.routingSortCode} onChange={(v) => set("routingSortCode", v)} max={20} optional error={errors.routingSortCode} />
+                <div className="sm:col-span-2">
+                  <TextField label="Intermediary Bank" value={form.intermediaryBank} onChange={(v) => set("intermediaryBank", v)} max={200} optional error={errors.intermediaryBank} />
+                </div>
+              </>
+            )}
+          </div>
+        </AdminSection>
+      )}
+
+      {feeApplicable && (
+        <AdminSection title="Fee Instructions" description="Who should pay transfer fees?">
+          <SelectInput label="Fee responsibility" value={form.feeResponsibility} onChange={(v) => set("feeResponsibility", v)} options={FEE_OPTIONS} error={errors.feeResponsibility} />
+        </AdminSection>
+      )}
 
       <div className="flex justify-end">
         <Button type="button" onClick={onReview}>

@@ -206,6 +206,10 @@ export const TRANSFER_FIELDS: FieldSpec[] = [
   { key: "reviewTitle", label: "Review section title", helper: "", max: 60 },
   { key: "confirmCheckboxLabel", label: "Confirmation checkbox label", helper: "Shown on the review step.", max: 150 },
   { key: "submitButtonLabel", label: "Submit button label", helper: "", max: 40 },
+  { key: "domesticWireHelperText", label: "Domestic Wire — helper text", helper: "Shown once Domestic Wire is selected as the transfer type.", max: 250 },
+  { key: "achHelperText", label: "ACH Transfer — helper text", helper: "Shown once ACH Transfer is selected as the transfer type.", max: 250 },
+  { key: "internationalWireHelperText", label: "International Wire — helper text", helper: "Shown once International Wire is selected as the transfer type.", max: 250 },
+  { key: "intraBankHelperText", label: "Intra-Bank Transfer — helper text", helper: "Shown once Intra-Bank Transfer is selected as the transfer type.", max: 250 },
   { key: "acceptedTitle", label: "Accepted — title", helper: "Shown after a submission when Result Mode is Request Accepted.", max: 100 },
   { key: "acceptedMessage", label: "Accepted — message", helper: "Must not claim money has actually been sent, settled or received — only that the request was received.", max: 300, multiline: true },
   { key: "backToDashboardLabel", label: "Accepted — button label", helper: "", max: 40 },
@@ -214,6 +218,29 @@ export const TRANSFER_FIELDS: FieldSpec[] = [
   { key: "failureHelperText", label: "Failure — helper note", helper: "An optional closing line (e.g. an apology for the inconvenience). Must not claim money has actually been sent, settled or received.", max: 150 },
   { key: "unavailableTitle", label: "Feature-disabled — title", helper: "Shown at /dashboard/transfer when the feature itself is turned off.", max: 100 },
   { key: "unavailableMessage", label: "Feature-disabled — message", helper: "", max: 300, multiline: true },
+];
+
+export const ZELLE_FIELDS: FieldSpec[] = [
+  { key: "pageTitle", label: "Page title", helper: "Heading at the top of /dashboard/zelle.", max: 100 },
+  { key: "pageSubtitle", label: "Page subtitle", helper: "Line under the page title.", max: 250 },
+  { key: "bodyText", label: "Body text", helper: "Explanatory paragraph.", max: 500, multiline: true },
+  { key: "availabilityText", label: "Availability note", helper: "States the current availability of this module plainly — must not claim a live transfer occurred.", max: 250 },
+];
+
+export const LOANS_FIELDS: FieldSpec[] = [
+  { key: "pageTitle", label: "Page title", helper: "Heading at the top of /dashboard/loans.", max: 100 },
+  { key: "pageSubtitle", label: "Page subtitle", helper: "Line under the page title.", max: 250 },
+  { key: "bodyText", label: "Body text", helper: "Explanatory paragraph. Must not imply an application was submitted or approved.", max: 500, multiline: true },
+  { key: "requestButtonLabel", label: "Request button label", helper: "", max: 40 },
+  { key: "requestToast", label: "Request confirmation toast", helper: "Shown after clicking the request button. Must not claim a loan was approved.", max: 150 },
+];
+
+export const FX_SALES_FIELDS: FieldSpec[] = [
+  { key: "pageTitle", label: "Page title", helper: "Heading at the top of /dashboard/fx-sales.", max: 100 },
+  { key: "pageSubtitle", label: "Page subtitle", helper: "Line under the page title.", max: 250 },
+  { key: "bodyText", label: "Body text", helper: "Explanatory paragraph. Must not imply a live FX trade was executed.", max: 500, multiline: true },
+  { key: "requestButtonLabel", label: "Request button label", helper: "", max: 40 },
+  { key: "requestToast", label: "Request confirmation toast", helper: "Shown after clicking the request button. Must not claim an FX trade was executed.", max: 150 },
 ];
 
 export const CORE_REQUIRED_PHRASE: Record<string, string> = {
@@ -254,10 +281,11 @@ function checkCoreNotice(errors: FieldErrors, errorKey: string, fieldKey: string
   if (banned) errors[errorKey] = `${label} can’t claim “${banned}” — this is a private record, not an official bank-verified statement.`;
 }
 
-// There is no real payment/settlement integration behind the transfer-request form, so none of its five
-// admin-editable result texts (accepted title/message, failure title/message/helper) may ever claim money has
-// actually moved — only that a request was received or couldn't be processed. Checked the same way as the
-// notices' banned-claim phrases above: an addition to, never a replacement for, text()'s checks.
+// There is no real payment/settlement integration behind the transfer-request form (nor behind the Zelle,
+// Loans or FX Sales placeholder modules), so none of their admin-editable texts may ever claim money has
+// actually moved, a loan was approved, or an FX trade executed — only that a request was received or
+// couldn't be processed. Checked the same way as the notices' banned-claim phrases above: an addition to,
+// never a replacement for, text()'s checks.
 const BANNED_SETTLEMENT_CLAIM_PHRASES = [
   "funds sent",
   "money sent",
@@ -277,6 +305,15 @@ const BANNED_SETTLEMENT_CLAIM_PHRASES = [
   "wire completed",
   "has been sent",
   "has been transferred",
+  "loan approved",
+  "application approved",
+  "loan has been approved",
+  "fx executed",
+  "trade executed",
+  "fx trade completed",
+  "rate locked",
+  "zelle sent",
+  "zelle completed",
 ];
 
 function checkTransferClaim(errors: FieldErrors, errorKey: string, value: string, label: string): void {
@@ -329,6 +366,18 @@ export function validateContent(input: Partial<UserContent>): Validated<UserCont
   checkTransferClaim(errors, "transfer.failureMessage", transfer.failureMessage, "Failure — message");
   checkTransferClaim(errors, "transfer.failureHelperText", transfer.failureHelperText, "Failure — helper note");
 
+  const zelle = validateGroup(errors, "zelle", input.zelle, ZELLE_FIELDS);
+  checkTransferClaim(errors, "zelle.bodyText", zelle.bodyText, "Body text");
+  checkTransferClaim(errors, "zelle.availabilityText", zelle.availabilityText, "Availability note");
+
+  const loans = validateGroup(errors, "loans", input.loans, LOANS_FIELDS);
+  checkTransferClaim(errors, "loans.bodyText", loans.bodyText, "Body text");
+  checkTransferClaim(errors, "loans.requestToast", loans.requestToast, "Request confirmation toast");
+
+  const fxSales = validateGroup(errors, "fxSales", input.fxSales, FX_SALES_FIELDS);
+  checkTransferClaim(errors, "fxSales.bodyText", fxSales.bodyText, "Body text");
+  checkTransferClaim(errors, "fxSales.requestToast", fxSales.requestToast, "Request confirmation toast");
+
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
     ok: true,
@@ -343,6 +392,9 @@ export function validateContent(input: Partial<UserContent>): Validated<UserCont
       notices: notices as unknown as UserContent["notices"],
       maintenance: maintenance as unknown as UserContent["maintenance"],
       transfer: transfer as unknown as UserContent["transfer"],
+      zelle: zelle as unknown as UserContent["zelle"],
+      loans: loans as unknown as UserContent["loans"],
+      fxSales: fxSales as unknown as UserContent["fxSales"],
     },
   };
 }

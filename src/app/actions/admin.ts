@@ -85,7 +85,7 @@ export async function updateContentSettings(input: UserContent): Promise<Content
   return { ok: true, settings };
 }
 
-const CONTENT_SECTIONS = ["login", "navigation", "dashboard", "transactions", "account", "support", "messages", "notices", "maintenance", "transfer"] as const;
+const CONTENT_SECTIONS = ["login", "navigation", "dashboard", "transactions", "account", "support", "messages", "notices", "maintenance", "transfer", "zelle", "loans", "fxSales"] as const;
 type ContentSection = (typeof CONTENT_SECTIONS)[number];
 
 export async function resetContentSectionAction(section: ContentSection): Promise<ContentSaveResult> {

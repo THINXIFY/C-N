@@ -215,6 +215,11 @@ export interface TransferContent {
   reviewTitle: string;
   confirmCheckboxLabel: string;
   submitButtonLabel: string;
+  /** Shown under the Transfer Type field once that type is selected. */
+  domesticWireHelperText: string;
+  achHelperText: string;
+  internationalWireHelperText: string;
+  intraBankHelperText: string;
   acceptedTitle: string;
   acceptedMessage: string;
   backToDashboardLabel: string;
@@ -224,6 +229,31 @@ export interface TransferContent {
   /** Shown instead of the form entirely when transferEnabled is off. */
   unavailableTitle: string;
   unavailableMessage: string;
+}
+
+/** /dashboard/zelle, /dashboard/loans, /dashboard/fx-sales — informational/request-interest modules only.
+ *  None of these connect to a real external system; each page states that plainly rather than simulating one. */
+export interface ZelleContent {
+  pageTitle: string;
+  pageSubtitle: string;
+  bodyText: string;
+  availabilityText: string;
+}
+
+export interface LoansContent {
+  pageTitle: string;
+  pageSubtitle: string;
+  bodyText: string;
+  requestButtonLabel: string;
+  requestToast: string;
+}
+
+export interface FxSalesContent {
+  pageTitle: string;
+  pageSubtitle: string;
+  bodyText: string;
+  requestButtonLabel: string;
+  requestToast: string;
 }
 
 export interface UserContent {
@@ -237,6 +267,9 @@ export interface UserContent {
   notices: NoticesContent;
   maintenance: MaintenanceContent;
   transfer: TransferContent;
+  zelle: ZelleContent;
+  loans: LoansContent;
+  fxSales: FxSalesContent;
 }
 
 export interface ContentSettings extends UserContent {
@@ -424,6 +457,10 @@ export const defaultUserContent: UserContent = {
     reviewTitle: "Review Transfer Request",
     confirmCheckboxLabel: "I confirm that the information entered is correct.",
     submitButtonLabel: "Submit Transfer Request",
+    domesticWireHelperText: "Use this option for USD transfers between U.S. bank accounts using routing and account numbers.",
+    achHelperText: "A simpler, lower-cost way to move funds between U.S. bank accounts. Processing may take longer than a wire.",
+    internationalWireHelperText: "Send funds to a bank account outside the United States. SWIFT/BIC and IBAN requirements vary by country.",
+    intraBankHelperText: "Move funds between accounts held internally. No external bank details are required.",
     acceptedTitle: "Transfer request submitted",
     acceptedMessage: "Your transfer request has been received successfully and recorded for processing.",
     backToDashboardLabel: "Back to Dashboard",
@@ -432,6 +469,29 @@ export const defaultUserContent: UserContent = {
     failureHelperText: "We apologize for the inconvenience and appreciate your patience.",
     unavailableTitle: "Transfer requests are currently unavailable.",
     unavailableMessage: "This feature has been temporarily turned off by an administrator. Please check back later.",
+  },
+  zelle: {
+    pageTitle: "Zelle",
+    pageSubtitle: "Send and request money quickly using Zelle.",
+    bodyText:
+      "Zelle is a fast way to move money between bank accounts using an email address or mobile number. This page is an informational placeholder for the Zelle module.",
+    availabilityText: "Zelle transfers are not currently available through this dashboard. Contact your administrator for more information.",
+  },
+  loans: {
+    pageTitle: "Loans",
+    pageSubtitle: "Explore financing options and request information.",
+    bodyText:
+      "Review general information about available loan products here, or let your administrator know you're interested in financing. This page does not submit a loan application or guarantee approval.",
+    requestButtonLabel: "Request Loan Information",
+    requestToast: "Your interest has been noted. An administrator will follow up with you.",
+  },
+  fxSales: {
+    pageTitle: "FX Sales",
+    pageSubtitle: "Inquire about foreign exchange rates and requests.",
+    bodyText:
+      "Submit a foreign exchange inquiry and an administrator will follow up with available rates and next steps. This page does not execute a live currency trade.",
+    requestButtonLabel: "Request FX Quote",
+    requestToast: "Your FX inquiry has been submitted. An administrator will follow up with you.",
   },
 };
 
@@ -460,6 +520,9 @@ export function mergeUserContent(stored: Partial<ContentSettings> | null | undef
     notices: { ...d.notices, ...s.notices },
     maintenance: { ...d.maintenance, ...s.maintenance },
     transfer: { ...d.transfer, ...s.transfer },
+    zelle: { ...d.zelle, ...s.zelle },
+    loans: { ...d.loans, ...s.loans },
+    fxSales: { ...d.fxSales, ...s.fxSales },
     updatedAt: typeof s.updatedAt === "string" ? s.updatedAt : null,
   };
 }

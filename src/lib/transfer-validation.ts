@@ -1,7 +1,16 @@
 // Shared find/validate rules for the transfer-request form — imported by both the client form (instant
 // per-field feedback, mirroring settings-validation.ts's pattern for the content editor) and the server action
 // (authoritative; the client's validation is never trusted on its own). No I/O here.
-import { FEE_RESPONSIBILITIES, TRANSFER_CURRENCIES, TRANSFER_TYPES, type FeeResponsibility, type TransferCurrency, type TransferType } from "@/data/transfer-requests";
+import {
+  ACCOUNT_TYPES,
+  FEE_RESPONSIBILITIES,
+  TRANSFER_CURRENCIES,
+  TRANSFER_TYPES,
+  type AccountType,
+  type FeeResponsibility,
+  type TransferCurrency,
+  type TransferType,
+} from "@/data/transfer-requests";
 
 export const TRANSFER_MAX_AMOUNT = 10_000_000;
 /** Deliberately not a strict 8/11-character SWIFT/BIC format check — banks quote this field inconsistently
@@ -28,9 +37,9 @@ export interface TransferFormInput {
   bankCity: string;
   bankProvince: string;
   bankPostalCode: string;
-  institutionNumber: string;
-  transitNumber: string;
+  routingNumber: string;
   accountNumber: string;
+  accountType: string;
   swiftBic: string;
   iban: string;
   routingSortCode: string;
@@ -61,9 +70,16 @@ export interface ValidatedTransferInput {
   bankCity: string;
   bankProvince: string;
   bankPostalCode: string;
+  /** Legacy Canadian-wire fields — never collected by the current form for any transfer type (replaced by
+   *  routingNumber for Domestic Wire / ACH). Always "" for new requests; kept only so the stored shape still
+   *  matches pre-existing records. */
   institutionNumber: string;
   transitNumber: string;
+  /** ABA / ACH routing number — Domestic Wire and ACH Transfer only. */
+  routingNumber: string;
   accountNumber: string;
+  /** ACH Transfer only; "" otherwise. */
+  accountType: AccountType | "";
   swiftBic: string;
   iban: string;
   routingSortCode: string;
@@ -102,14 +118,24 @@ export function validateTransferRequest(input: TransferFormInput): TransferValid
 
   const transferType = clean(input.transferType);
   if (!TRANSFER_TYPES.includes(transferType as TransferType)) errors.transferType = "Select a valid transfer type.";
-  const isDomestic = transferType === "domestic";
 
-  const amountRaw = clean(input.amount);
+  const isDomestic = transferType === "domestic";
+  const isAch = transferType === "ach";
+  const isInternational = transferType === "international";
+  const isIntraBank = transferType === "intrabank";
+  const hasExternalBank = isDomestic || isAch || isInternational;
+  const hasFullAddress = isDomestic || isInternational; // city/state/zip relevant beyond the street line
+  const feeApplicable = isDomestic || isInternational;
+
+  // Amount: strip grouping commas before anything else, so "700,000" parses as 700000, never as a rejected
+  // or truncated value. The client already strips commas as the admin/user types; this is defense in depth
+  // for any caller that doesn't go through the form (the server never trusts client-side parsing alone).
+  const amountRaw = clean(input.amount).replace(/,/g, "");
   let amount = 0;
   if (!amountRaw) {
     errors.amount = "Amount is required.";
   } else if (!/^\d+(\.\d{1,2})?$/.test(amountRaw)) {
-    errors.amount = "Enter a valid amount with at most 2 decimal places.";
+    errors.amount = "Enter a valid amount — digits only, with at most 2 decimal places.";
   } else {
     amount = Number(amountRaw);
     if (!(amount > 0)) errors.amount = "Amount must be greater than 0.";
@@ -120,30 +146,30 @@ export function validateTransferRequest(input: TransferFormInput): TransferValid
   const purpose = field(errors, "purpose", input.purpose, "Purpose of transfer", 500, false);
 
   const recipientName = field(errors, "recipientName", input.recipientName, "Recipient name", 150, true);
-  const recipientAddress = field(errors, "recipientAddress", input.recipientAddress, "Recipient address", 250, true);
-  const recipientCity = field(errors, "recipientCity", input.recipientCity, "City", 100, true);
-  const recipientProvince = field(errors, "recipientProvince", input.recipientProvince, "Province / State", 100, isDomestic);
-  const recipientPostalCode = field(errors, "recipientPostalCode", input.recipientPostalCode, "Postal / ZIP code", 20, true);
-  const recipientCountry = field(errors, "recipientCountry", input.recipientCountry, "Country", 100, true);
+  const recipientAddress = field(errors, "recipientAddress", input.recipientAddress, "Recipient address", 250, !isIntraBank);
+  const recipientCity = field(errors, "recipientCity", input.recipientCity, "City", 100, isDomestic);
+  const recipientProvince = field(errors, "recipientProvince", input.recipientProvince, "State / Province", 100, isDomestic);
+  const recipientPostalCode = field(errors, "recipientPostalCode", input.recipientPostalCode, "ZIP / Postal code", 20, isDomestic);
+  const recipientCountry = field(errors, "recipientCountry", input.recipientCountry, "Country", 100, isDomestic || isInternational);
 
-  const bankName = field(errors, "bankName", input.bankName, "Bank name", 150, true);
+  const bankName = field(errors, "bankName", input.bankName, "Bank name", 150, hasExternalBank);
   const branchName = field(errors, "branchName", input.branchName, "Branch name", 150, false);
-  const bankAddress = field(errors, "bankAddress", input.bankAddress, "Bank / branch address", 250, true);
-  const bankCity = field(errors, "bankCity", input.bankCity, "Bank city", 100, true);
-  const bankProvince = field(errors, "bankProvince", input.bankProvince, "Bank province", 100, isDomestic);
-  const bankPostalCode = field(errors, "bankPostalCode", input.bankPostalCode, "Bank postal code", 20, isDomestic);
+  const bankAddress = field(errors, "bankAddress", input.bankAddress, "Bank / branch address", 250, hasFullAddress);
+  const bankCity = field(errors, "bankCity", input.bankCity, "Bank city", 100, isDomestic);
+  const bankProvince = field(errors, "bankProvince", input.bankProvince, "Bank state / province", 100, isDomestic);
+  const bankPostalCode = field(errors, "bankPostalCode", input.bankPostalCode, "Bank ZIP / postal code", 20, isDomestic);
 
-  const institutionNumber = clean(input.institutionNumber);
-  if (isDomestic && !institutionNumber) errors.institutionNumber = "Institution number is required.";
-  else if (institutionNumber && !/^\d{3}$/.test(institutionNumber)) errors.institutionNumber = "Institution number must be exactly 3 digits.";
-
-  const transitNumber = clean(input.transitNumber);
-  if (isDomestic && !transitNumber) errors.transitNumber = "Transit number is required.";
-  else if (transitNumber && !/^\d{5}$/.test(transitNumber)) errors.transitNumber = "Transit number must be exactly 5 digits.";
+  const routingNumber = clean(input.routingNumber);
+  if ((isDomestic || isAch) && !routingNumber) errors.routingNumber = "Routing / ABA number is required.";
+  else if (routingNumber && !/^\d{9}$/.test(routingNumber)) errors.routingNumber = "Routing / ABA number must be exactly 9 digits.";
 
   const accountNumber = clean(input.accountNumber);
   if (!accountNumber) errors.accountNumber = "Account number is required.";
   else if (!/^\d{4,20}$/.test(accountNumber)) errors.accountNumber = "Account number must be 4–20 digits.";
+
+  const accountTypeRaw = clean(input.accountType);
+  if (accountTypeRaw && !ACCOUNT_TYPES.includes(accountTypeRaw as AccountType)) errors.accountType = "Select a valid account type.";
+  const accountType: AccountType | "" = isAch && ACCOUNT_TYPES.includes(accountTypeRaw as AccountType) ? (accountTypeRaw as AccountType) : "";
 
   // Flexible on purpose: no exact-length format check (banks quote this field inconsistently) — just a
   // sane character set and a generous max length to block garbage/abuse.
@@ -155,8 +181,9 @@ export function validateTransferRequest(input: TransferFormInput): TransferValid
   const routingSortCode = field(errors, "routingSortCode", input.routingSortCode, "Routing / sort code", 20, false);
   const intermediaryBank = field(errors, "intermediaryBank", input.intermediaryBank, "Intermediary bank", 200, false);
 
-  const feeResponsibility = clean(input.feeResponsibility);
-  if (!FEE_RESPONSIBILITIES.includes(feeResponsibility as FeeResponsibility)) errors.feeResponsibility = "Select who pays the transfer fees.";
+  const feeResponsibilityRaw = clean(input.feeResponsibility);
+  if (feeApplicable && !FEE_RESPONSIBILITIES.includes(feeResponsibilityRaw as FeeResponsibility)) errors.feeResponsibility = "Select who pays the transfer fees.";
+  const feeResponsibility: FeeResponsibility = FEE_RESPONSIBILITIES.includes(feeResponsibilityRaw as FeeResponsibility) ? (feeResponsibilityRaw as FeeResponsibility) : "shared";
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
@@ -179,14 +206,16 @@ export function validateTransferRequest(input: TransferFormInput): TransferValid
       bankCity,
       bankProvince,
       bankPostalCode,
-      institutionNumber,
-      transitNumber,
+      institutionNumber: "",
+      transitNumber: "",
+      routingNumber,
       accountNumber,
+      accountType,
       swiftBic,
       iban,
       routingSortCode,
       intermediaryBank,
-      feeResponsibility: feeResponsibility as FeeResponsibility,
+      feeResponsibility,
     },
   };
 }

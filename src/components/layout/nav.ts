@@ -1,5 +1,7 @@
 import {
   FileText,
+  Globe,
+  HandCoins,
   LayoutDashboard,
   Landmark,
   LifeBuoy,
@@ -9,6 +11,7 @@ import {
   UserCog,
   Users,
   UserRound,
+  Zap,
   ArrowLeftRight,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +27,9 @@ export interface NavItem {
 export const userNav: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/transfer", label: "Transfer Funds", icon: Send },
+  { href: "/dashboard/zelle", label: "Zelle", icon: Zap },
+  { href: "/dashboard/loans", label: "Loans", icon: HandCoins },
+  { href: "/dashboard/fx-sales", label: "FX Sales", icon: Globe },
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/dashboard/account", label: "Account", icon: UserRound },
   { href: "/dashboard/support", label: "Support", icon: LifeBuoy },

@@ -7,7 +7,7 @@ module.exports = {
     {
       name: "c-n-dashboard",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3000 -H 127.0.0.1",
+      args: "start -p 3600 -H 127.0.0.1",
       cwd: __dirname,
       exec_mode: "fork",
       instances: 1,

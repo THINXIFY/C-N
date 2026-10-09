@@ -174,7 +174,7 @@ export function TransferForm({ content }: { content: TransferContent }) {
           <h2 className="mt-5 text-xl font-semibold sm:text-2xl">{content.acceptedTitle}</h2>
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">{content.acceptedMessage}</p>
           <p className="mx-auto mt-3 max-w-sm text-[13px] leading-relaxed text-muted">
-            Please keep your PSID for reference. You can use it when contacting support regarding this request.
+            Keep your PSID safe in case you need it later.
           </p>
         </div>
 

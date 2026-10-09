@@ -173,6 +173,9 @@ export function TransferForm({ content }: { content: TransferContent }) {
           </span>
           <h2 className="mt-5 text-xl font-semibold sm:text-2xl">{content.acceptedTitle}</h2>
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">{content.acceptedMessage}</p>
+          <p className="mx-auto mt-3 max-w-sm text-[13px] leading-relaxed text-muted">
+            Please keep your PSID for reference. You can use it when contacting support regarding this request.
+          </p>
         </div>
 
         <div className="mt-6 rounded-xl border border-line bg-canvas/60 p-4 sm:p-5">
@@ -186,11 +189,12 @@ export function TransferForm({ content }: { content: TransferContent }) {
           </dl>
         </div>
 
-        <p className="mt-5 text-center text-[13px] leading-relaxed text-muted">
-          Your request is now recorded for processing. You can review the details below or return to your dashboard.
-        </p>
-
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+          <Link href="/dashboard/support">
+            <Button type="button" variant="secondary">
+              Contact Support
+            </Button>
+          </Link>
           <Link href="/dashboard">
             <Button type="button">{content.backToDashboardLabel}</Button>
           </Link>
@@ -212,7 +216,8 @@ export function TransferForm({ content }: { content: TransferContent }) {
 
         <div className="mt-6 rounded-xl border border-[#f0c987] bg-[#fdf3dd] p-4 text-center">
           <p className="text-[13px] font-medium leading-relaxed text-[#8a6116]">
-            Your account balance has not been changed and no transfer has been completed.
+            No funds have been transferred and your recorded account balance remains unchanged. Please try again later or contact support if you
+            need assistance.
           </p>
         </div>
 

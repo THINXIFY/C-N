@@ -207,11 +207,11 @@ export const TRANSFER_FIELDS: FieldSpec[] = [
   { key: "confirmCheckboxLabel", label: "Confirmation checkbox label", helper: "Shown on the review step.", max: 150 },
   { key: "submitButtonLabel", label: "Submit button label", helper: "", max: 40 },
   { key: "acceptedTitle", label: "Accepted — title", helper: "Shown after a submission when Result Mode is Request Accepted.", max: 100 },
-  { key: "acceptedMessage", label: "Accepted — message", helper: "Must not claim money has actually been sent — only that the request was received.", max: 300, multiline: true },
+  { key: "acceptedMessage", label: "Accepted — message", helper: "Must not claim money has actually been sent, settled or received — only that the request was received.", max: 300, multiline: true },
   { key: "backToDashboardLabel", label: "Accepted — button label", helper: "", max: 40 },
   { key: "failureTitle", label: "Failure — title", helper: "Shown after a submission when Result Mode is Temporarily Unavailable.", max: 100 },
-  { key: "failureMessage", label: "Failure — message", helper: "", max: 300, multiline: true },
-  { key: "failureHelperText", label: "Failure — helper note", helper: "", max: 150 },
+  { key: "failureMessage", label: "Failure — message", helper: "Must not claim money has actually been sent, settled or received.", max: 300, multiline: true },
+  { key: "failureHelperText", label: "Failure — helper note", helper: "An optional closing line (e.g. an apology for the inconvenience). Must not claim money has actually been sent, settled or received.", max: 150 },
   { key: "unavailableTitle", label: "Feature-disabled — title", helper: "Shown at /dashboard/transfer when the feature itself is turned off.", max: 100 },
   { key: "unavailableMessage", label: "Feature-disabled — message", helper: "", max: 300, multiline: true },
 ];
@@ -254,9 +254,10 @@ function checkCoreNotice(errors: FieldErrors, errorKey: string, fieldKey: string
   if (banned) errors[errorKey] = `${label} can’t claim “${banned}” — this is a private record, not an official bank-verified statement.`;
 }
 
-// There is no real payment/settlement integration behind the transfer-request form, so the admin-editable
-// "accepted" wording must never claim money has actually moved — only that a request was received. Checked the
-// same way as the notices' banned-claim phrases above: an addition to, never a replacement for, text()'s checks.
+// There is no real payment/settlement integration behind the transfer-request form, so none of its five
+// admin-editable result texts (accepted title/message, failure title/message/helper) may ever claim money has
+// actually moved — only that a request was received or couldn't be processed. Checked the same way as the
+// notices' banned-claim phrases above: an addition to, never a replacement for, text()'s checks.
 const BANNED_SETTLEMENT_CLAIM_PHRASES = [
   "funds sent",
   "money sent",
@@ -270,6 +271,8 @@ const BANNED_SETTLEMENT_CLAIM_PHRASES = [
   "transfer settled",
   "payment sent",
   "payment completed",
+  "payment successful",
+  "recipient credited",
   "wire sent",
   "wire completed",
   "has been sent",
@@ -322,6 +325,9 @@ export function validateContent(input: Partial<UserContent>): Validated<UserCont
   const transfer = validateGroup(errors, "transfer", input.transfer, TRANSFER_FIELDS);
   checkTransferClaim(errors, "transfer.acceptedTitle", transfer.acceptedTitle, "Accepted — title");
   checkTransferClaim(errors, "transfer.acceptedMessage", transfer.acceptedMessage, "Accepted — message");
+  checkTransferClaim(errors, "transfer.failureTitle", transfer.failureTitle, "Failure — title");
+  checkTransferClaim(errors, "transfer.failureMessage", transfer.failureMessage, "Failure — message");
+  checkTransferClaim(errors, "transfer.failureHelperText", transfer.failureHelperText, "Failure — helper note");
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {

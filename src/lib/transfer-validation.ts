@@ -4,6 +4,9 @@
 import { FEE_RESPONSIBILITIES, TRANSFER_CURRENCIES, TRANSFER_TYPES, type FeeResponsibility, type TransferCurrency, type TransferType } from "@/data/transfer-requests";
 
 export const TRANSFER_MAX_AMOUNT = 10_000_000;
+/** Deliberately not a strict 8/11-character SWIFT/BIC format check — banks quote this field inconsistently
+ *  (with branch codes, spacing, etc.), so this only guards against abuse/garbage input, not format. */
+export const SWIFT_BIC_MAX = 50;
 
 export interface TransferFormInput {
   amount: string;
@@ -142,8 +145,11 @@ export function validateTransferRequest(input: TransferFormInput): TransferValid
   if (!accountNumber) errors.accountNumber = "Account number is required.";
   else if (!/^\d{4,20}$/.test(accountNumber)) errors.accountNumber = "Account number must be 4–20 digits.";
 
-  const swiftBic = clean(input.swiftBic).toUpperCase();
-  if (swiftBic && !/^[A-Z0-9]{8}$|^[A-Z0-9]{11}$/.test(swiftBic)) errors.swiftBic = "SWIFT / BIC must be 8 or 11 alphanumeric characters.";
+  // Flexible on purpose: no exact-length format check (banks quote this field inconsistently) — just a
+  // sane character set and a generous max length to block garbage/abuse.
+  const swiftBic = clean(input.swiftBic);
+  if (swiftBic.length > SWIFT_BIC_MAX) errors.swiftBic = `SWIFT / BIC must be ${SWIFT_BIC_MAX} characters or fewer.`;
+  else if (swiftBic && !/^[A-Za-z0-9 -]+$/.test(swiftBic)) errors.swiftBic = "SWIFT / BIC can only contain letters, numbers, spaces and hyphens.";
 
   const iban = field(errors, "iban", input.iban, "IBAN", 34, false);
   const routingSortCode = field(errors, "routingSortCode", input.routingSortCode, "Routing / sort code", 20, false);

@@ -21,6 +21,11 @@ export type TransferRequestStatus = (typeof TRANSFER_REQUEST_STATUSES)[number];
 
 export interface TransferRequest {
   id: string;
+  /** Internal request reference shown to the user and admin — "TRX-YYYYMMDD-XXXXXXXX", generated once
+   *  server-side when the request is recorded and never regenerated or editable afterward. This is NOT a bank
+   *  confirmation/settlement ID — there is no payment integration behind it (see createdAt-adjacent UI copy,
+   *  which must always frame it as a request reference only). */
+  psid: string;
   userId: string;
   amount: number;
   currency: TransferCurrency;

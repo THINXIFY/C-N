@@ -1,16 +1,17 @@
 "use client";
 
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { Check, CheckCircle2, Clock, Copy } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { submitTransferRequestAction } from "@/app/actions/transfer";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { SelectInput, TextAreaField, TextField } from "@/components/admin/fields";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
 import type { TransferContent } from "@/data/settings";
 import { TRANSFER_CURRENCIES } from "@/data/transfer-requests";
-import { cn } from "@/lib/cn";
-import { validateTransferRequest, type TransferFieldErrors, type TransferFormInput } from "@/lib/transfer-validation";
+import { formatDateTime, formatMoney } from "@/lib/format";
+import { SWIFT_BIC_MAX, validateTransferRequest, type TransferFieldErrors, type TransferFormInput } from "@/lib/transfer-validation";
 
 const CURRENCY_OPTIONS = TRANSFER_CURRENCIES.map((c) => ({ value: c, label: c }));
 const TYPE_OPTIONS = [
@@ -64,6 +65,47 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** The PSID is an internal request reference only — never a bank confirmation, settlement ID or proof of
+ *  payment (there is no payment integration behind this form). Shown prominently with its own copy affordance. */
+function PsidRow({ psid }: { psid: string }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(psid);
+      toast("PSID copied");
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1600);
+    } catch {
+      toast("Couldn’t copy — select the reference and copy manually");
+    }
+  }
+
+  return (
+    <div className="grid gap-1 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
+      <dt className="text-sm text-muted">PSID</dt>
+      <dd className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="break-all font-mono text-[15px] font-semibold">{psid}</span>
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label={copied ? "PSID copied" : `Copy PSID: ${psid}`}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border border-line px-2.5 text-xs font-medium text-ink transition-[background-color,border-color] duration-150 hover:border-[#cfd8d3] hover:bg-canvas"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-brand" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-muted">Keep this reference for your records.</p>
+      </dd>
+    </div>
+  );
+}
+
 export function TransferForm({ content }: { content: TransferContent }) {
   const [form, setForm] = useState<TransferFormInput>(emptyForm);
   const [errors, setErrors] = useState<TransferFieldErrors>({});
@@ -71,6 +113,7 @@ export function TransferForm({ content }: { content: TransferContent }) {
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState<"submitted" | "unavailable" | null>(null);
+  const [resultMeta, setResultMeta] = useState<{ psid: string; createdAt: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   function set<K extends keyof TransferFormInput>(key: K, value: TransferFormInput[K]) {
@@ -103,6 +146,7 @@ export function TransferForm({ content }: { content: TransferContent }) {
         return;
       }
       setResultStatus(res.status ?? "submitted");
+      setResultMeta(res.psid && res.createdAt ? { psid: res.psid, createdAt: res.createdAt } : null);
       setPhase("result");
     });
   }
@@ -113,36 +157,81 @@ export function TransferForm({ content }: { content: TransferContent }) {
     setConfirmChecked(false);
     setSubmitError(null);
     setResultStatus(null);
+    setResultMeta(null);
     setPhase("form");
   }
 
   const isDomestic = form.transferType === "domestic";
   const isInternational = form.transferType === "international";
 
-  if (phase === "result") {
-    const accepted = resultStatus === "submitted";
+  if (phase === "result" && resultStatus === "submitted") {
     return (
-      <div className="mx-auto max-w-xl rounded-2xl border border-line bg-white p-6 text-center sm:p-10">
-        <span
-          className={cn(
-            "mx-auto flex h-14 w-14 items-center justify-center rounded-2xl",
-            accepted ? "bg-brand-soft text-brand-dark" : "bg-debit-soft text-debit",
-          )}
-        >
-          {accepted ? <CheckCircle2 className="h-6 w-6" aria-hidden="true" /> : <AlertCircle className="h-6 w-6" aria-hidden="true" />}
-        </span>
-        <h2 className="mt-5 text-xl font-semibold">{accepted ? content.acceptedTitle : content.failureTitle}</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted">{accepted ? content.acceptedMessage : content.failureMessage}</p>
-        {!accepted && content.failureHelperText && <p className="mt-3 text-xs text-muted">{content.failureHelperText}</p>}
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
-          {!accepted && (
-            <Button type="button" variant="secondary" onClick={onStartOver}>
-              Try Again
-            </Button>
-          )}
+      <div className="mx-auto max-w-xl rounded-2xl border border-line bg-white p-6 sm:p-8">
+        <div className="text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-dark">
+            <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+          </span>
+          <h2 className="mt-5 text-xl font-semibold sm:text-2xl">{content.acceptedTitle}</h2>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">{content.acceptedMessage}</p>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-line bg-canvas/60 p-4 sm:p-5">
+          <dl className="divide-y divide-line/80">
+            <ReviewRow label="Amount" value={formatMoney(Number(form.amount), form.currency)} />
+            <ReviewRow label="Recipient" value={form.recipientName} />
+            <ReviewRow label="Bank" value={form.bankName} />
+            {form.reference && <ReviewRow label="Reference" value={form.reference} />}
+            {resultMeta && <ReviewRow label="Submitted" value={formatDateTime(resultMeta.createdAt)} />}
+            {resultMeta && <PsidRow psid={resultMeta.psid} />}
+          </dl>
+        </div>
+
+        <p className="mt-5 text-center text-[13px] leading-relaxed text-muted">
+          Your request is now recorded for processing. You can review the details below or return to your dashboard.
+        </p>
+
+        <div className="mt-6 flex justify-center">
           <Link href="/dashboard">
-            <Button type="button">{accepted ? content.backToDashboardLabel : "Back to Dashboard"}</Button>
+            <Button type="button">{content.backToDashboardLabel}</Button>
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "result" && resultStatus === "unavailable") {
+    return (
+      <div className="mx-auto max-w-xl rounded-2xl border border-line bg-white p-6 sm:p-8">
+        <div className="text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fdf3dd] text-[#8a6116]">
+            <Clock className="h-7 w-7" aria-hidden="true" />
+          </span>
+          <h2 className="mt-5 text-xl font-semibold sm:text-2xl">{content.failureTitle}</h2>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">{content.failureMessage}</p>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-[#f0c987] bg-[#fdf3dd] p-4 text-center">
+          <p className="text-[13px] font-medium leading-relaxed text-[#8a6116]">
+            Your account balance has not been changed and no transfer has been completed.
+          </p>
+        </div>
+
+        {content.failureHelperText && <p className="mt-4 text-center text-[13px] leading-relaxed text-muted">{content.failureHelperText}</p>}
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+          <Link href="/dashboard/support">
+            <Button type="button" variant="ghost">
+              Contact Support
+            </Button>
+          </Link>
+          <Link href="/dashboard">
+            <Button type="button" variant="secondary">
+              {content.backToDashboardLabel}
+            </Button>
+          </Link>
+          <Button type="button" onClick={onStartOver}>
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -152,7 +241,7 @@ export function TransferForm({ content }: { content: TransferContent }) {
     return (
       <AdminSection title={content.reviewTitle} description="Please review the details below before submitting.">
         <dl className="divide-y divide-line">
-          <ReviewRow label={content.amountLabel} value={`${form.amount} ${form.currency}`} />
+          <ReviewRow label={content.amountLabel} value={formatMoney(Number(form.amount), form.currency)} />
           <ReviewRow label={content.transferTypeLabel} value={isDomestic ? "Domestic Canadian Wire" : "International Wire"} />
           <ReviewRow label="Recipient" value={form.recipientName} />
           <ReviewRow label="Bank" value={form.bankName} />
@@ -262,7 +351,15 @@ export function TransferForm({ content }: { content: TransferContent }) {
             inputMode="numeric"
             error={errors.accountNumber}
           />
-          <TextField label="SWIFT / BIC Code" value={form.swiftBic} onChange={(v) => set("swiftBic", v.toUpperCase())} max={11} optional error={errors.swiftBic} />
+          <TextField
+            label="SWIFT / BIC Code"
+            value={form.swiftBic}
+            onChange={(v) => set("swiftBic", v)}
+            max={SWIFT_BIC_MAX}
+            optional
+            helper="Enter the recipient bank's SWIFT / BIC code if applicable."
+            error={errors.swiftBic}
+          />
           {isInternational && (
             <>
               <TextField label="IBAN" value={form.iban} onChange={(v) => set("iban", v)} max={34} optional error={errors.iban} />

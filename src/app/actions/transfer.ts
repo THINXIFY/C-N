@@ -20,6 +20,10 @@ export interface SubmitTransferResult {
   error?: string;
   fieldErrors?: TransferFieldErrors;
   status?: "submitted" | "unavailable";
+  /** The request's permanent, server-generated reference ("TRX-YYYYMMDD-XXXXXXXX") and timestamp — set only
+   *  when a request record was actually created (never fabricated client-side, never regenerated on refresh). */
+  psid?: string;
+  createdAt?: string;
 }
 
 export async function submitTransferRequestAction(input: TransferFormInput): Promise<SubmitTransferResult> {
@@ -34,9 +38,9 @@ export async function submitTransferRequestAction(input: TransferFormInput): Pro
 
   const status = settings.transferResultMode === "accepted" ? "submitted" : "unavailable";
   try {
-    await createTransferRequest(user.id, result.value, status);
+    const record = await createTransferRequest(user.id, result.value, status);
+    return { ok: true, status, psid: record.psid, createdAt: record.createdAt };
   } catch {
     return { ok: false, error: "Unable to submit your request. Please try again." };
   }
-  return { ok: true, status };
 }

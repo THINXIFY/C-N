@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CheckCircle2, Clock, Copy } from "lucide-react";
+import { Check, CheckCircle2, Copy, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { submitTransferRequestAction } from "@/app/actions/transfer";
@@ -221,15 +221,15 @@ export function TransferForm({ content }: { content: TransferContent }) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-line bg-white p-6 sm:p-8">
         <div className="text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fdf3dd] text-[#8a6116]">
-            <Clock className="h-7 w-7" aria-hidden="true" />
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-debit-soft text-debit">
+            <XCircle className="h-7 w-7" aria-hidden="true" />
           </span>
           <h2 className="mt-5 text-xl font-semibold sm:text-2xl">{content.failureTitle}</h2>
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">{content.failureMessage}</p>
         </div>
 
-        <div className="mt-6 rounded-xl border border-[#f0c987] bg-[#fdf3dd] p-4 text-center">
-          <p className="text-[13px] font-medium leading-relaxed text-[#8a6116]">
+        <div className="mt-6 rounded-xl border border-debit/20 bg-debit-soft/60 p-4 text-center">
+          <p className="text-[13px] font-medium leading-relaxed text-debit">
             No funds have been transferred and your recorded account balance remains unchanged. Please try again later or contact support if you
             need assistance.
           </p>
@@ -268,6 +268,9 @@ export function TransferForm({ content }: { content: TransferContent }) {
           {(isDomestic || isAch) && form.routingNumber && <ReviewRow label="Routing / ABA number" value={form.routingNumber} />}
           {isAch && form.accountType && <ReviewRow label="Account type" value={form.accountType === "checking" ? "Checking" : "Savings"} />}
           {form.swiftBic && <ReviewRow label="SWIFT / BIC" value={form.swiftBic} />}
+          {form.iban && <ReviewRow label="IBAN" value={form.iban} />}
+          {form.routingSortCode && <ReviewRow label="Routing / Sort Code" value={form.routingSortCode} />}
+          {form.intermediaryBank && <ReviewRow label="Intermediary Bank" value={form.intermediaryBank} />}
           {form.reference && <ReviewRow label="Reference" value={form.reference} />}
           {form.purpose && <ReviewRow label="Purpose" value={form.purpose} />}
         </dl>

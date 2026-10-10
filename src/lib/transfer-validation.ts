@@ -171,8 +171,14 @@ export function validateTransferRequest(input: TransferFormInput): TransferValid
   if (accountTypeRaw && !ACCOUNT_TYPES.includes(accountTypeRaw as AccountType)) errors.accountType = "Select a valid account type.";
   const accountType: AccountType | "" = isAch && ACCOUNT_TYPES.includes(accountTypeRaw as AccountType) ? (accountTypeRaw as AccountType) : "";
 
-  // Flexible on purpose: no exact-length format check (banks quote this field inconsistently) — just a
-  // sane character set and a generous max length to block garbage/abuse.
+  // SWIFT/BIC and IBAN are deliberately both optional, with no cross-field "one of them is required" rule.
+  // Different destination countries/banking systems have different requirements (some use IBAN, some use
+  // local routing schemes, some need neither for a given correspondent relationship) — a single global
+  // either/or rule would be wrong for a meaningful fraction of real destinations. Each field is still
+  // format-checked WHEN a value is actually provided: SWIFT/BIC against a permissive charset (banks quote
+  // this field inconsistently — no exact 8/11-char check, just enough to block garbage/abuse), IBAN against
+  // a generous length cap via field(). This is intentional, not an oversight — do not add a required-one-of
+  // rule here without a specific, country-aware reason to do so.
   const swiftBic = clean(input.swiftBic);
   if (swiftBic.length > SWIFT_BIC_MAX) errors.swiftBic = `SWIFT / BIC must be ${SWIFT_BIC_MAX} characters or fewer.`;
   else if (swiftBic && !/^[A-Za-z0-9 -]+$/.test(swiftBic)) errors.swiftBic = "SWIFT / BIC can only contain letters, numbers, spaces and hyphens.";

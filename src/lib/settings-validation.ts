@@ -25,6 +25,10 @@ export interface FieldSpec {
   helper: string;
   max: number;
   multiline?: boolean;
+  /** Defaults to required (true) like every other field — set false only for a field whose own helper text
+   *  already documents it as optional (e.g. "An optional closing line"), so the admin can legitimately clear
+   *  it to blank rather than being forced to fill in placeholder text just to pass validation. */
+  required?: boolean;
 }
 
 // ---------- field specs, grouped by admin-editor tab ----------
@@ -213,9 +217,9 @@ export const TRANSFER_FIELDS: FieldSpec[] = [
   { key: "acceptedTitle", label: "Accepted — title", helper: "Shown after a submission when Result Mode is Request Accepted.", max: 100 },
   { key: "acceptedMessage", label: "Accepted — message", helper: "Must not claim money has actually been sent, settled or received — only that the request was received.", max: 300, multiline: true },
   { key: "backToDashboardLabel", label: "Accepted — button label", helper: "", max: 40 },
-  { key: "failureTitle", label: "Failure — title", helper: "Shown after a submission when Result Mode is Temporarily Unavailable.", max: 100 },
+  { key: "failureTitle", label: "Failure — title", helper: "Shown after a submission when Result Mode is Temporarily Unavailable.", max: 150 },
   { key: "failureMessage", label: "Failure — message", helper: "Must not claim money has actually been sent, settled or received.", max: 300, multiline: true },
-  { key: "failureHelperText", label: "Failure — helper note", helper: "An optional closing line (e.g. an apology for the inconvenience). Must not claim money has actually been sent, settled or received.", max: 150 },
+  { key: "failureHelperText", label: "Failure — helper note", helper: "An optional closing line (e.g. an apology for the inconvenience). Must not claim money has actually been sent, settled or received.", max: 150, required: false },
   { key: "unavailableTitle", label: "Feature-disabled — title", helper: "Shown at /dashboard/transfer when the feature itself is turned off.", max: 100 },
   { key: "unavailableMessage", label: "Feature-disabled — message", helper: "", max: 300, multiline: true },
 ];
@@ -332,7 +336,7 @@ function validateGroup(errors: FieldErrors, prefix: string, raw: object | undefi
   const r = raw as Record<string, unknown> | undefined;
   const out: Record<string, string> = {};
   for (const spec of specs) {
-    out[spec.key] = text(errors, `${prefix}.${spec.key}`, r?.[spec.key], spec.label, spec.max, { multiline: spec.multiline });
+    out[spec.key] = text(errors, `${prefix}.${spec.key}`, r?.[spec.key], spec.label, spec.max, { multiline: spec.multiline, required: spec.required });
   }
   return out;
 }

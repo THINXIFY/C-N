@@ -1,7 +1,7 @@
 // PM2 process definition for production. No secrets live here — real values (SESSION_SECRET, the
 // first-run USER_*/ADMIN_* seed vars) come from .env.local in this same directory, which Next.js loads
 // automatically and which is never committed to Git (see .gitignore). This file only sets NODE_ENV and the
-// internal bind address/port; Nginx reverse-proxies public traffic to 127.0.0.1:3000.
+// internal bind address/port; Nginx reverse-proxies public traffic to 127.0.0.1:3600.
 module.exports = {
   apps: [
     {
